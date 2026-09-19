@@ -15,6 +15,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
 from pydantic import BaseModel
 
+from fastapi.middleware.cors import CORSMiddleware
+
 from .crawler import SiteCrawler
 from .ai_tree import MultiAITreeEngine
 from .storage import (
@@ -26,6 +28,14 @@ from .storage import (
 )
 
 app = FastAPI(title="SiteTree Debugger", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -43,6 +53,46 @@ class SettingsRequest(BaseModel):
     gemini_api_key: Optional[str] = ""
     preferred_model: Optional[str] = "gemini-2.5-flash"
     deep_scan: Optional[bool] = True
+
+@app.post("/api/analyze")
+async def analyze_url(req: AnalyzeRequest):
+    target_url = req.url.strip()
+    if not target_url:
+        raise HTTPException(status_code=400, detail="Target URL is required")
+    
+    settings = load_settings()
+    api_key = req.api_key or settings.get("gemini_api_key")
+    model = req.model or settings.get("preferred_model", "gemini-2.5-flash")
+
+    crawler = SiteCrawler()
+    crawl_data = await crawler.inspect_url(target_url)
+
+    tree_engine = MultiAITreeEngine(api_key=api_key, preferred_model=model)
+    tree_data = await tree_engine.run_tree_analysis(crawl_data)
+
+    record = {
+        "target_url": crawl_data["target_url"],
+        "summary": tree_data["summary"],
+        "crawl_data": {
+            "status_code": crawl_data["status_code"],
+            "latency_ms": crawl_data["latency_ms"],
+            "page_title": crawl_data["page_title"],
+            "broken_assets": crawl_data["broken_assets"],
+            "runtime_hazards": crawl_data["runtime_hazards"],
+            "api_endpoints": crawl_data["api_endpoints"],
+            "forms": crawl_data["assets"]["forms"]
+        },
+        "tree_data": tree_data
+    }
+    audit_id = save_audit_record(record)
+    record["id"] = audit_id
+
+    return {
+        "status": "success",
+        "audit_id": audit_id,
+        "summary": tree_data["summary"],
+        "full_data": record
+    }
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):

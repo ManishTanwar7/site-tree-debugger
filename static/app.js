@@ -1,7 +1,7 @@
 /**
  * SiteTree Debugger Frontend Engine
- * Real-time WebSocket tree streaming, interactive visual tree renderer,
- * timeline pinpointer, and bug matrix.
+ * Dual-Transport: Real-time WebSocket + Automatic HTTP REST Fallback,
+ * Interactive visual tree renderer, timeline pinpointer, and bug matrix.
  */
 
 // State
@@ -56,6 +56,26 @@ const settingModel = document.getElementById("setting-model");
 const btnExportMd = document.getElementById("btn-export-md");
 const btnExportJson = document.getElementById("btn-export-json");
 
+// Helper to determine endpoints safely
+function getEndpoints() {
+    const proto = window.location.protocol;
+    const host = window.location.host;
+    
+    // If opened via file:/// or host is empty, fallback to local backend port 8000
+    if (proto === "file:" || !host || host === "") {
+        return {
+            httpBase: "http://127.0.0.1:8000",
+            wsBase: "ws://127.0.0.1:8000"
+        };
+    }
+    
+    const wsProto = proto === "https:" ? "wss:" : "ws:";
+    return {
+        httpBase: window.location.origin,
+        wsBase: `${wsProto}//${host}`
+    };
+}
+
 // Define Tree Architecture Layout
 const TREE_STRUCTURE = [
     {
@@ -96,8 +116,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Demo URL Handler
 btnDemoUrl.addEventListener("click", () => {
-    const origin = window.location.origin;
-    targetUrlInput.value = `${origin}/api/demo-broken-site`;
+    const { httpBase } = getEndpoints();
+    targetUrlInput.value = `${httpBase}/api/demo-broken-site`;
     auditForm.dispatchEvent(new Event("submit"));
 });
 
@@ -207,75 +227,161 @@ function updateNodeVisual(nodeId, status, details = {}) {
     }
 }
 
-// Start Audit via WebSocket
+// Start Audit: Tries WebSocket, gracefully and automatically falls back to HTTP REST
 function startAudit(url) {
     btnAnalyze.disabled = true;
     liveStatusBar.classList.remove("hidden");
     resultsWrapper.classList.remove("hidden");
-    liveStatusText.textContent = `Connecting to crawler for: ${url}`;
+    liveStatusText.textContent = `Connecting to audit engine for: ${url}`;
     liveStatusSub.textContent = "Initiating multi-model tree evaluation pipeline...";
 
     renderInitialTreeSkeleton();
 
-    // Determine WebSocket protocol (ws: or wss:)
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws/analyze`;
+    const { httpBase, wsBase } = getEndpoints();
 
-    let socket;
-    try {
-        socket = new WebSocket(wsUrl);
-    } catch (err) {
-        console.error("WebSocket init failed:", err);
-        liveStatusText.textContent = "WebSocket connection failed.";
-        btnAnalyze.disabled = false;
+    // If opened directly from file system (file:///) or WebSocket is unavailable, use HTTP REST immediately
+    if (window.location.protocol === "file:" || typeof WebSocket === "undefined") {
+        runHttpAudit(url, httpBase);
         return;
     }
 
-    socket.onopen = () => {
-        liveStatusText.textContent = `Scraping & inspecting DOM: ${url}`;
-        socket.send(JSON.stringify({ url }));
-    };
+    let wsHandshakeSuccess = false;
+    let wsTimedOut = false;
+    let socket = null;
 
-    socket.onmessage = (event) => {
-        try {
-            const msg = JSON.parse(event.data);
-
-            if (msg.type === "crawl_started") {
-                liveStatusText.textContent = "Crawling website resources...";
-                liveStatusSub.textContent = msg.message;
-            } else if (msg.type === "crawl_completed") {
-                const s = msg.crawl_summary;
-                liveStatusText.textContent = `Crawled ${s.scripts_found} scripts & ${s.broken_assets} broken assets. Launching Multi-AI Model Tree...`;
-                liveStatusSub.textContent = `HTTP ${s.status_code} • Latency: ${s.latency_ms}ms • Hazards: ${s.runtime_hazards}`;
-            } else if (msg.type === "node_update") {
-                const node = msg.node;
-                updateNodeVisual(node.node_id, node.status, node.details);
-            } else if (msg.type === "audit_completed") {
-                liveStatusBar.classList.add("hidden");
-                btnAnalyze.disabled = false;
-                currentAuditId = msg.audit_id;
-                currentAuditData = msg.full_data;
-                renderAuditReport(msg.full_data);
-                refreshHistory();
-            } else if (msg.type === "error") {
-                liveStatusText.textContent = `Audit Error: ${msg.message}`;
-                liveStatusSub.textContent = "Please verify the URL is accessible and try again.";
-                btnAnalyze.disabled = false;
+    // Safety Watchdog: If WebSocket does not respond within 2 seconds, switch to HTTP REST API
+    const wsWatchdog = setTimeout(() => {
+        if (!wsHandshakeSuccess) {
+            wsTimedOut = true;
+            if (socket) {
+                try { socket.close(); } catch (e) {}
             }
-        } catch (err) {
-            console.error("Error parsing WebSocket message:", err);
+            console.warn("WebSocket watchdog triggered. Switching to HTTP REST engine.");
+            runHttpAudit(url, httpBase);
         }
-    };
+    }, 2000);
 
-    socket.onerror = (err) => {
-        console.error("WebSocket error:", err);
-        liveStatusText.textContent = "Connection error. Retrying...";
-        btnAnalyze.disabled = false;
-    };
+    try {
+        const wsUrl = `${wsBase}/ws/analyze`;
+        socket = new WebSocket(wsUrl);
 
-    socket.onclose = () => {
+        socket.onopen = () => {
+            liveStatusText.textContent = `Scraping & inspecting DOM: ${url}`;
+            socket.send(JSON.stringify({ url }));
+        };
+
+        socket.onmessage = (event) => {
+            wsHandshakeSuccess = true;
+            clearTimeout(wsWatchdog);
+
+            try {
+                const msg = JSON.parse(event.data);
+
+                if (msg.type === "crawl_started") {
+                    liveStatusText.textContent = "Crawling website resources...";
+                    liveStatusSub.textContent = msg.message;
+                } else if (msg.type === "crawl_completed") {
+                    const s = msg.crawl_summary;
+                    liveStatusText.textContent = `Crawled ${s.scripts_found} scripts & ${s.broken_assets} broken assets. Launching Multi-AI Model Tree...`;
+                    liveStatusSub.textContent = `HTTP ${s.status_code} • Latency: ${s.latency_ms}ms • Hazards: ${s.runtime_hazards}`;
+                } else if (msg.type === "node_update") {
+                    const node = msg.node;
+                    updateNodeVisual(node.node_id, node.status, node.details);
+                } else if (msg.type === "audit_completed") {
+                    liveStatusBar.classList.add("hidden");
+                    btnAnalyze.disabled = false;
+                    currentAuditId = msg.audit_id;
+                    currentAuditData = msg.full_data;
+                    renderAuditReport(msg.full_data);
+                    refreshHistory();
+                } else if (msg.type === "error") {
+                    liveStatusText.textContent = `Audit Error: ${msg.message}`;
+                    liveStatusSub.textContent = "Please verify the URL is accessible and try again.";
+                    btnAnalyze.disabled = false;
+                }
+            } catch (err) {
+                console.error("Error parsing WebSocket message:", err);
+            }
+        };
+
+        socket.onerror = (err) => {
+            if (!wsHandshakeSuccess && !wsTimedOut) {
+                clearTimeout(wsWatchdog);
+                console.warn("WebSocket error detected. Seamlessly falling back to HTTP REST audit...");
+                runHttpAudit(url, httpBase);
+            }
+        };
+
+        socket.onclose = () => {
+            if (!wsHandshakeSuccess && !wsTimedOut) {
+                clearTimeout(wsWatchdog);
+                runHttpAudit(url, httpBase);
+            }
+        };
+    } catch (err) {
+        clearTimeout(wsWatchdog);
+        console.warn("WebSocket initialization exception:", err);
+        runHttpAudit(url, httpBase);
+    }
+}
+
+// HTTP REST Audit Engine (100% reliable fallback)
+async function runHttpAudit(url, httpBase) {
+    liveStatusText.textContent = `Auditing website via REST engine: ${url}`;
+    liveStatusSub.textContent = "Crawling HTML, scripts, stylesheets, and evaluating AI decision tree...";
+
+    // Animate nodes sequentially so the UI provides live visual feedback
+    updateNodeVisual("root_orchestrator", "running", { thought: `Analyzing site profile for ${url}...` });
+    
+    const branchTimer = setTimeout(() => {
+        ["branch_network", "branch_assets", "branch_dom", "branch_scripts", "branch_api"].forEach(bId => {
+            updateNodeVisual(bId, "running", { thought: "Model inspecting parameters..." });
+        });
+    }, 400);
+
+    const synthTimer = setTimeout(() => {
+        updateNodeVisual("synthesis_crash_pinpointer", "running", { thought: "Pinpointing failure points..." });
+        updateNodeVisual("synthesis_autofix", "running", { thought: "Synthesizing code fixes..." });
+    }, 1200);
+
+    try {
+        const res = await fetch(`${httpBase}/api/analyze`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url })
+        });
+
+        clearTimeout(branchTimer);
+        clearTimeout(synthTimer);
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+            throw new Error(errData.detail || `Server returned ${res.status}`);
+        }
+
+        const data = await res.json();
+        const fullData = data.full_data || {};
+
+        // Update each node in the tree with its real results
+        const nodes = fullData.tree_data?.nodes || {};
+        for (const [nid, node] of Object.entries(nodes)) {
+            updateNodeVisual(nid, node.status, node.details);
+        }
+
+        liveStatusBar.classList.add("hidden");
         btnAnalyze.disabled = false;
-    };
+        currentAuditId = data.audit_id;
+        currentAuditData = fullData;
+        renderAuditReport(fullData);
+        refreshHistory();
+    } catch (err) {
+        clearTimeout(branchTimer);
+        clearTimeout(synthTimer);
+        liveStatusText.textContent = `Audit Failed: ${err.message}`;
+        liveStatusSub.textContent = `Ensure the backend server is running at ${httpBase}. Click to retry.`;
+        btnAnalyze.disabled = false;
+        console.error("HTTP audit failed:", err);
+    }
 }
 
 // Render Complete Audit Report
@@ -589,8 +695,9 @@ function initHistory() {
 }
 
 async function refreshHistory() {
+    const { httpBase } = getEndpoints();
     try {
-        const res = await fetch("/api/history");
+        const res = await fetch(`${httpBase}/api/history`);
         const list = await res.json();
 
         if (!list || list.length === 0) {
@@ -615,8 +722,9 @@ async function refreshHistory() {
 }
 
 async function loadPastAudit(auditId) {
+    const { httpBase } = getEndpoints();
     try {
-        const res = await fetch(`/api/audit/${auditId}`);
+        const res = await fetch(`${httpBase}/api/audit/${auditId}`);
         const data = await res.json();
         currentAuditId = auditId;
         currentAuditData = data;
@@ -640,8 +748,9 @@ async function loadPastAudit(auditId) {
 // Settings logic
 function initSettings() {
     btnOpenSettings.addEventListener("click", async () => {
+        const { httpBase } = getEndpoints();
         try {
-            const res = await fetch("/api/settings");
+            const res = await fetch(`${httpBase}/api/settings`);
             const data = await res.json();
             settingGeminiKey.value = data.gemini_api_key || "";
             settingModel.value = data.preferred_model || "gemini-2.5-flash";
@@ -658,12 +767,13 @@ function initSettings() {
 
     settingsForm.addEventListener("submit", async (e) => {
         e.preventDefault();
+        const { httpBase } = getEndpoints();
         const payload = {
             gemini_api_key: settingGeminiKey.value.trim(),
             preferred_model: settingModel.value
         };
         try {
-            await fetch("/api/settings", {
+            await fetch(`${httpBase}/api/settings`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -679,12 +789,14 @@ function initSettings() {
 // Exports
 btnExportMd.addEventListener("click", () => {
     if (!currentAuditId) return;
-    window.open(`/api/export/${currentAuditId}?format=markdown`, "_blank");
+    const { httpBase } = getEndpoints();
+    window.open(`${httpBase}/api/export/${currentAuditId}?format=markdown`, "_blank");
 });
 
 btnExportJson.addEventListener("click", () => {
     if (!currentAuditId) return;
-    window.open(`/api/export/${currentAuditId}?format=json`, "_blank");
+    const { httpBase } = getEndpoints();
+    window.open(`${httpBase}/api/export/${currentAuditId}?format=json`, "_blank");
 });
 
 // Utilities
