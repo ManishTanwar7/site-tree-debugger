@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SiteTree Debugger | Multi-AI Website Bug & Crash Analyzer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#1e1b4b',
+                        },
+                        darkbg: '#0B0F19',
+                        darkcard: '#131B2E',
+                        darkborder: '#1E293B'
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-darkbg text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+    <!-- Top Navbar -->
+    <header class="border-b border-darkborder bg-darkcard/80 backdrop-blur-md sticky top-0 z-40 px-6 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                <i class="fa-solid fa-network-wired text-white text-lg"></i>
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="text-lg font-bold tracking-tight text-white">SiteTree <span class="text-indigo-400 font-mono text-sm uppercase px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800/60">Debugger</span></h1>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Multi-AI Engine
+                    </span>
+                </div>
+                <p class="text-xs text-slate-400">Hierarchical Tree-Structured Website Crash & Bug Hunter</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <button id="btn-demo-url" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-vial-circle-check text-amber-400"></i> Try Demo Broken Site
+            </button>
+            <button id="btn-open-history" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Audit History
+            </button>
+            <button id="btn-open-settings" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-gear text-slate-400"></i> Settings
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+        <!-- URL Input Hero Box -->
+        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-b from-darkcard to-slate-900/90 border border-darkborder p-6 shadow-2xl">
+            <div class="absolute -right-16 -top-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-16 -bottom-16 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-bug text-indigo-400"></i> Paste Web Address To Analyze
+                        </h2>
+                        <p class="text-sm text-slate-400">Enter any website URL — the multi-AI model tree will crawl its DOM, assets, scripts, and pinpoint where it crashes.</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-slate-400">
+                        <span class="inline-flex items-center gap-1 bg-slate-800/80 px-2.5 py-1 rounded-md border border-slate-700">
+                            <i class="fa-solid fa-shield-halved text-emerald-400"></i> Autonomous Heuristic Mode Active
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Input Field Form -->
+                <form id="audit-form" class="flex flex-col sm:flex-row gap-3">
+                    <div class="relative flex-1">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-globe"></i>
+                        </div>
+                        <input
+                            type="text"
+                            id="target-url-input"
+                            required
+                            placeholder="https://my-app.vercel.app or http://localhost:3000"
+                            class="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl text-white placeholder-slate-500 text-sm transition outline-none"
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        id="btn-analyze"
+                        class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium rounded-xl text-sm transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Start Multi-AI Tree Audit</span>
+                    </button>
+                </form>
+
+                <!-- Feature Pills -->
+                <div class="flex flex-wrap gap-2 pt-1 text-xs text-slate-400">
+                    <span class="px-2.5 py-1 bg-slate-800/50 rounded-lg border border-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-code text-indigo-400"></i> JavaScript Null-Deref Catch
+                    </span>
+                    <span class="px-2.5 py-1 bg-slate-800/50 rounded-lg border border-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Broken Script & Asset 404s
+                    </span>
+                    <span class="px-2.5 py-1 bg-slate-800/50 rounded-lg border border-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-server text-sky-400"></i> API & Localhost Leak Detector
+                    </span>
+                    <span class="px-2.5 py-1 bg-slate-800/50 rounded-lg border border-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-timeline text-emerald-400"></i> Point-of-Failure Pinpointer
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Status Notification Banner -->
+        <div id="live-status-bar" class="hidden rounded-xl border border-indigo-900/60 bg-indigo-950/30 p-4 transition">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-3 h-3 rounded-full bg-indigo-500 animate-ping"></div>
+                    <div class="text-sm">
+                        <span id="live-status-text" class="font-medium text-indigo-300">Initializing site audit...</span>
+                        <p id="live-status-sub" class="text-xs text-slate-400 mt-0.5">Connecting to target URL</p>
+                    </div>
+                </div>
+                <div id="live-spinner" class="animate-spin text-indigo-400 text-lg">
+                    <i class="fa-solid fa-spinner"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Container (Hidden until audit run or loaded) -->
+        <div id="results-wrapper" class="space-y-6 hidden">
+
+            <!-- 🚨 CRASH POINT SPOTLIGHT BANNER -->
+            <div id="crash-spotlight-card" class="rounded-2xl border p-6 shadow-xl transition">
+                <!-- Dynamically populated by JS -->
+            </div>
+
+            <!-- Health Score & Metrics Strip -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-darkcard rounded-xl border border-darkborder p-4 flex items-center gap-3">
+                    <div id="metric-health-icon" class="w-12 h-12 rounded-lg flex items-center justify-center text-xl"></div>
+                    <div>
+                        <p class="text-xs text-slate-400">Site Health Score</p>
+                        <p id="metric-health-score" class="text-2xl font-bold text-white">--</p>
+                    </div>
+                </div>
+                <div class="bg-darkcard rounded-xl border border-darkborder p-4 flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-skull"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Critical Crash Points</p>
+                        <p id="metric-critical-count" class="text-2xl font-bold text-rose-400">0</p>
+                    </div>
+                </div>
+                <div class="bg-darkcard rounded-xl border border-darkborder p-4 flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Warnings & Glitches</p>
+                        <p id="metric-warning-count" class="text-2xl font-bold text-amber-400">0</p>
+                    </div>
+                </div>
+                <div class="bg-darkcard rounded-xl border border-darkborder p-4 flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-stopwatch"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Response Latency</p>
+                        <p id="metric-latency" class="text-2xl font-bold text-sky-400">-- ms</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MULTI-AI TREE STRUCTURE VISUALIZER -->
+            <div class="rounded-2xl bg-darkcard border border-darkborder p-6 shadow-xl space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-darkborder pb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-sitemap text-indigo-400"></i> Multi-AI Model Tree Architecture
+                        </h3>
+                        <p class="text-xs text-slate-400">Hierarchical decision tree: Each node represents an AI diagnostic model analyzing a distinct layer.</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Crash/Error</span>
+                        <span class="flex items-center gap-1.5 ml-2"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Warning</span>
+                        <span class="flex items-center gap-1.5 ml-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Healthy</span>
+                        <span class="flex items-center gap-1.5 ml-2"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span> Processing</span>
+                    </div>
+                </div>
+
+                <!-- Tree Graph Canvas Container -->
+                <div class="overflow-x-auto py-4">
+                    <div id="ai-tree-visualizer" class="min-w-[760px] flex flex-col items-center space-y-6">
+                        <!-- Rendered dynamically by app.js -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto-Fix & Remediation Card -->
+            <div id="autofix-card" class="rounded-2xl bg-darkcard border border-darkborder p-6 shadow-xl space-y-4">
+                <!-- Dynamically populated -->
+            </div>
+
+            <!-- Detailed Bug Matrix & Assets Audit -->
+            <div class="rounded-2xl bg-darkcard border border-darkborder p-6 shadow-xl space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-darkborder pb-4">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-indigo-400"></i> Detailed Issue & Asset Inventory
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-export-md" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-arrow-down text-indigo-400"></i> Export Markdown Report
+                        </button>
+                        <button id="btn-export-json" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-code text-sky-400"></i> Export JSON
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex border-b border-slate-800 text-xs font-medium text-slate-400 space-x-4">
+                    <button class="tab-btn py-2 border-b-2 border-indigo-500 text-white" data-tab="tab-hazards">
+                        Runtime Hazards (<span id="count-hazards">0</span>)
+                    </button>
+                    <button class="tab-btn py-2 border-b-2 border-transparent hover:text-slate-200" data-tab="tab-assets">
+                        Broken Assets & 404s (<span id="count-assets">0</span>)
+                    </button>
+                    <button class="tab-btn py-2 border-b-2 border-transparent hover:text-slate-200" data-tab="tab-api">
+                        APIs Discovered (<span id="count-api">0</span>)
+                    </button>
+                    <button class="tab-btn py-2 border-b-2 border-transparent hover:text-slate-200" data-tab="tab-forms">
+                        DOM Forms (<span id="count-forms">0</span>)
+                    </button>
+                </div>
+
+                <!-- Tab Panes -->
+                <div id="tab-hazards" class="tab-pane space-y-3 pt-2">
+                    <div id="hazards-list" class="space-y-2"></div>
+                </div>
+
+                <div id="tab-assets" class="tab-pane hidden space-y-3 pt-2">
+                    <div id="assets-list" class="space-y-2"></div>
+                </div>
+
+                <div id="tab-api" class="tab-pane hidden space-y-3 pt-2">
+                    <div id="api-list" class="space-y-2"></div>
+                </div>
+
+                <div id="tab-forms" class="tab-pane hidden space-y-3 pt-2">
+                    <div id="forms-list" class="space-y-2"></div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Node Detail Modal -->
+    <div id="node-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-darkborder rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl relative">
+            <button id="btn-close-node-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex items-center gap-3">
+                <div id="modal-node-icon" class="w-10 h-10 rounded-xl flex items-center justify-center text-lg"></div>
+                <div>
+                    <h4 id="modal-node-title" class="font-bold text-white text-base">Node Details</h4>
+                    <span id="modal-node-status" class="text-xs px-2 py-0.5 rounded font-mono uppercase"></span>
+                </div>
+            </div>
+            <div id="modal-node-content" class="text-xs space-y-3 max-h-96 overflow-y-auto pr-1 text-slate-300">
+                <!-- Content injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- History Sidebar Drawer -->
+    <div id="history-drawer" class="fixed inset-y-0 right-0 max-w-md w-full bg-darkcard border-l border-darkborder z-50 shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-5 border-b border-darkborder flex items-center justify-between">
+            <h3 class="font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Previous Site Audits
+            </h3>
+            <button id="btn-close-history" class="text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        <div id="history-list" class="flex-1 overflow-y-auto p-4 space-y-2">
+            <p class="text-xs text-slate-500 text-center py-6">No previous audits found.</p>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-darkcard border border-darkborder rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative">
+            <button id="btn-close-settings" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex items-center gap-3 border-b border-darkborder pb-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-sliders"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-white">AI Engine Settings</h4>
+                    <p class="text-xs text-slate-400">Configure Gemini API key or use Autonomous Heuristic mode</p>
+                </div>
+            </div>
+
+            <form id="settings-form" class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-medium text-slate-300 mb-1">Gemini API Key (Optional)</label>
+                    <input
+                        type="password"
+                        id="setting-gemini-key"
+                        placeholder="AIzaSy..."
+                        class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:border-indigo-500 outline-none"
+                    />
+                    <p class="text-slate-500 mt-1">Leave empty to use built-in Autonomous Heuristic Diagnostic Engine.</p>
+                </div>
+
+                <div>
+                    <label class="block font-medium text-slate-300 mb-1">Gemini Model</label>
+                    <select id="setting-model" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:border-indigo-500 outline-none">
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast, Recommended)</option>
+                        <option value="gemini-2.5-pro">Gemini 2.5 Pro (Deep Code Reasoning)</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                    </select>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" id="btn-cancel-settings" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-darkborder bg-slate-950/60 px-6 py-4 text-center text-xs text-slate-500">
+        SiteTree Debugger &copy; 2026 &bull; Multi-AI Website Bug Hunter &amp; Crash Point Pinpointer &bull; Ready for Localhost &amp; Render Cloud
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
