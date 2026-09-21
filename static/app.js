@@ -1,13 +1,19 @@
 /**
- * SiteTree Debugger - Formal Professional Edition
- * 50 Specialized AI Worker Parameters with Simple Plain-English Explanations.
+ * SiteTree Debugger - High-Density 2,000 AI Verification Grid
+ * Instant search, division filtering, status filtering, and fast pagination across 2,000 parameters.
  */
 
 // State
 let currentAuditId = null;
 let currentAuditData = null;
-let currentWorkersList = [];
-let activeDivisionFilter = "all";
+let allWorkers = [];
+let filteredWorkers = [];
+let currentPage = 1;
+const PAGE_SIZE = 48; // 48 items per page = 42 pages for 2,000 items
+
+let activeDivision = "all";
+let activeStatus = "all";
+let searchQuery = "";
 
 // DOM Elements
 const auditForm = document.getElementById("audit-form");
@@ -21,6 +27,22 @@ const resultsWrapper = document.getElementById("results-wrapper");
 const aiWorkersGrid = document.getElementById("ai-workers-grid");
 const crashSpotlightCard = document.getElementById("crash-spotlight-card");
 const autofixCard = document.getElementById("autofix-card");
+
+// Search & Filter Inputs
+const paramSearchInput = document.getElementById("param-search-input");
+const statusFilterCritCount = document.getElementById("status-filter-crit-count");
+const statusFilterWarnCount = document.getElementById("status-filter-warn-count");
+
+// Pagination elements
+const btnPagePrev = document.getElementById("btn-page-prev");
+const btnPageNext = document.getElementById("btn-page-next");
+const gridPageNum = document.getElementById("grid-page-num");
+const gridShowingText = document.getElementById("grid-showing-text");
+
+const btnPagePrevBottom = document.getElementById("btn-page-prev-bottom");
+const btnPageNextBottom = document.getElementById("btn-page-next-bottom");
+const gridPageNumBottom = document.getElementById("grid-page-num-bottom");
+const gridShowingTextBottom = document.getElementById("grid-showing-text-bottom");
 
 // Metrics
 const metricHealthScore = document.getElementById("metric-health-score");
@@ -75,75 +97,12 @@ function getEndpoints() {
     };
 }
 
-// 50 AI Workers Static Registry for initial skeleton
-const WORKERS_REGISTRY = [
-    // Division 1: Network & Hosting (1-10)
-    { id: "w01_http_status", title: "1. Website Server Response", division: "Network & Hosting", icon: "fa-solid fa-server" },
-    { id: "w02_ssl_cert", title: "2. Security & HTTPS Lock", division: "Network & Hosting", icon: "fa-solid fa-lock" },
-    { id: "w03_speed_latency", title: "3. Loading Speed & Delay", division: "Network & Hosting", icon: "fa-solid fa-gauge-high" },
-    { id: "w04_redirect_loops", title: "4. Page Redirects", division: "Network & Hosting", icon: "fa-solid fa-arrow-turn-down" },
-    { id: "w05_mixed_content", title: "5. Insecure Mixed Content", division: "Network & Hosting", icon: "fa-solid fa-triangle-exclamation" },
-    { id: "w06_dns_connectivity", title: "6. Domain Connection", division: "Network & Hosting", icon: "fa-solid fa-globe" },
-    { id: "w07_cors_policy", title: "7. Browser Sharing (CORS)", division: "Network & Hosting", icon: "fa-solid fa-share-nodes" },
-    { id: "w08_compression", title: "8. File Compression (Gzip)", division: "Network & Hosting", icon: "fa-solid fa-file-zipper" },
-    { id: "w09_cache_headers", title: "9. Browser Cache Settings", division: "Network & Hosting", icon: "fa-solid fa-clock" },
-    { id: "w10_server_error_pages", title: "10. Clean Error Pages", division: "Network & Hosting", icon: "fa-solid fa-shield" },
-
-    // Division 2: Assets & Files (11-20)
-    { id: "w11_script_bundle_404", title: "11. JavaScript File Loading", division: "Assets & Files", icon: "fa-brands fa-js" },
-    { id: "w12_css_stylesheet_404", title: "12. Stylesheet (CSS) Loading", division: "Assets & Files", icon: "fa-solid fa-palette" },
-    { id: "w13_broken_images", title: "13. Image & Photo Availability", division: "Assets & Files", icon: "fa-solid fa-image" },
-    { id: "w14_external_cdns", title: "14. Third-Party CDNs", division: "Assets & Files", icon: "fa-solid fa-cloud-arrow-down" },
-    { id: "w15_font_loading", title: "15. Web Fonts & Typography", division: "Assets & Files", icon: "fa-solid fa-font" },
-    { id: "w16_favicon", title: "16. Tab Icon (Favicon)", division: "Assets & Files", icon: "fa-solid fa-star" },
-    { id: "w17_page_size", title: "17. Total HTML Page Weight", division: "Assets & Files", icon: "fa-solid fa-weight-scale" },
-    { id: "w18_script_defer", title: "18. Non-Blocking Scripts", division: "Assets & Files", icon: "fa-solid fa-bolt" },
-    { id: "w19_svg_icons", title: "19. Vector Icons & Graphics", division: "Assets & Files", icon: "fa-solid fa-shapes" },
-    { id: "w20_iframe_embeds", title: "20. Embedded Frames & Widgets", division: "Assets & Files", icon: "fa-solid fa-window-restore" },
-
-    // Division 3: JavaScript & Crashes (21-30)
-    { id: "w21_null_deref", title: "21. Missing Button Click Crash", division: "JavaScript & Crashes", icon: "fa-solid fa-arrow-pointer" },
-    { id: "w22_missing_library", title: "22. Missing Library Crash", division: "JavaScript & Crashes", icon: "fa-solid fa-box-open" },
-    { id: "w23_unhandled_promise", title: "23. Frozen UI on Network Glitch", division: "JavaScript & Crashes", icon: "fa-solid fa-snowflake" },
-    { id: "w24_storage_parse", title: "24. Local Storage Saved Data Crash", division: "JavaScript & Crashes", icon: "fa-solid fa-database" },
-    { id: "w25_missing_inline_func", title: "25. Button Calls Missing Function", division: "JavaScript & Crashes", icon: "fa-solid fa-hand-pointer" },
-    { id: "w26_dom_ready_timing", title: "26. Script Execution Timing", division: "JavaScript & Crashes", icon: "fa-solid fa-hourglass-start" },
-    { id: "w27_infinite_loops", title: "27. Infinite Loop Protection", division: "JavaScript & Crashes", icon: "fa-solid fa-repeat" },
-    { id: "w28_variable_scope", title: "28. Global Variable Scope", division: "JavaScript & Crashes", icon: "fa-solid fa-code" },
-    { id: "w29_event_listener_cleanup", title: "29. Memory & Event Handlers", division: "JavaScript & Crashes", icon: "fa-solid fa-microchip" },
-    { id: "w30_json_validity", title: "30. Client JSON Data Integrity", division: "JavaScript & Crashes", icon: "fa-solid fa-file-code" },
-
-    // Division 4: APIs & Forms (31-40)
-    { id: "w31_broken_api_routes", title: "31. Backend API Endpoint Health", division: "APIs & Forms", icon: "fa-solid fa-network-wired" },
-    { id: "w32_localhost_leak", title: "32. Accidental 'localhost' Leak", division: "APIs & Forms", icon: "fa-solid fa-laptop-code" },
-    { id: "w33_form_action", title: "33. Form Submit Action", division: "APIs & Forms", icon: "fa-solid fa-paper-plane" },
-    { id: "w34_missing_submit_btn", title: "34. Form Submit Button Presence", division: "APIs & Forms", icon: "fa-solid fa-square-check" },
-    { id: "w35_api_timeout_hang", title: "35. API Response Speed", division: "APIs & Forms", icon: "fa-solid fa-stopwatch" },
-    { id: "w36_input_types", title: "36. Input Fields Setup", division: "APIs & Forms", icon: "fa-solid fa-keyboard" },
-    { id: "w37_cors_api_block", title: "37. API Cross-Origin Permissions", division: "APIs & Forms", icon: "fa-solid fa-shield-virus" },
-    { id: "w38_api_content_type", title: "38. Data Request Headers (JSON)", division: "APIs & Forms", icon: "fa-solid fa-brackets-curly" },
-    { id: "w39_url_search_params", title: "39. Link Query Parameters", division: "APIs & Forms", icon: "fa-solid fa-magnifying-glass" },
-    { id: "w40_session_storage", title: "40. User Login & Session Persistence", division: "APIs & Forms", icon: "fa-solid fa-user-shield" },
-
-    // Division 5: User Experience & Security (41-50)
-    { id: "w41_mobile_viewport", title: "41. Mobile Phone Compatibility Tag", division: "User Experience & Security", icon: "fa-solid fa-mobile-screen" },
-    { id: "w42_dead_internal_links", title: "42. Broken Links (404 Not Found)", division: "User Experience & Security", icon: "fa-solid fa-link-slash" },
-    { id: "w43_page_title_seo", title: "43. Website Title in Browser Tab", division: "User Experience & Security", icon: "fa-solid fa-window-maximize" },
-    { id: "w44_charset", title: "44. Text Characters & Language (UTF-8)", division: "User Experience & Security", icon: "fa-solid fa-language" },
-    { id: "w45_security_headers", title: "45. Security Shield Headers (X-Frame)", division: "User Experience & Security", icon: "fa-solid fa-shield-halved" },
-    { id: "w46_content_type_options", title: "46. File Type Sniffing Protection", division: "User Experience & Security", icon: "fa-solid fa-file-shield" },
-    { id: "w47_external_link_safety", title: "47. External Link Security", division: "User Experience & Security", icon: "fa-solid fa-arrow-up-right-from-square" },
-    { id: "w48_readable_text", title: "48. Page Content & Text Structure", division: "User Experience & Security", icon: "fa-solid fa-align-left" },
-    { id: "w49_responsive_layout", title: "49. Responsive Page Layout", division: "User Experience & Security", icon: "fa-solid fa-table-columns" },
-    { id: "w50_overall_crash_synthesis", title: "50. Master Crash & Failure Synthesis", division: "User Experience & Security", icon: "fa-solid fa-circle-nodes" }
-];
-
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {
-    initDivisionFilters();
+    initFilters();
+    initPagination();
     initSettings();
     initHistory();
-    renderInitialWorkersSkeleton();
 });
 
 // Demo URL Button
@@ -162,112 +121,153 @@ auditForm.addEventListener("submit", (e) => {
     startAudit(url);
 });
 
-function initDivisionFilters() {
-    const filterBtns = document.querySelectorAll(".div-filter-btn");
-    filterBtns.forEach(btn => {
+function initFilters() {
+    // Instant Search
+    paramSearchInput.addEventListener("input", (e) => {
+        searchQuery = e.target.value.toLowerCase().trim();
+        currentPage = 1;
+        applyFiltersAndRender();
+    });
+
+    // Status Filter Buttons
+    const statusBtns = document.querySelectorAll(".status-filter-btn");
+    statusBtns.forEach(btn => {
         btn.addEventListener("click", () => {
-            filterBtns.forEach(b => {
-                b.className = "div-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 cursor-pointer";
+            statusBtns.forEach(b => {
+                b.className = "status-filter-btn px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 cursor-pointer";
             });
-            btn.className = "div-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200 cursor-pointer";
-            activeDivisionFilter = btn.getAttribute("data-filter");
-            applyDivisionFilter();
+            btn.className = "status-filter-btn px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200 cursor-pointer";
+            activeStatus = btn.getAttribute("data-status");
+            currentPage = 1;
+            applyFiltersAndRender();
+        });
+    });
+
+    // Division Filter Buttons
+    const divBtns = document.querySelectorAll(".div-filter-btn");
+    divBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            divBtns.forEach(b => {
+                b.className = "div-filter-btn px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 cursor-pointer";
+            });
+            btn.className = "div-filter-btn px-2.5 py-1 rounded-md text-[11px] font-medium bg-blue-50 text-blue-800 border border-blue-200 cursor-pointer";
+            activeDivision = btn.getAttribute("data-filter");
+            currentPage = 1;
+            applyFiltersAndRender();
         });
     });
 }
 
-function applyDivisionFilter() {
-    const cards = document.querySelectorAll(".ai-worker-card");
-    cards.forEach(c => {
-        const div = c.getAttribute("data-division");
-        if (activeDivisionFilter === "all" || div === activeDivisionFilter) {
-            c.classList.remove("hidden");
-        } else {
-            c.classList.add("hidden");
+function initPagination() {
+    const goPrev = () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderGridPage();
         }
-    });
+    };
+    const goNext = () => {
+        const maxPages = Math.ceil(filteredWorkers.length / PAGE_SIZE) || 1;
+        if (currentPage < maxPages) {
+            currentPage++;
+            renderGridPage();
+        }
+    };
+
+    btnPagePrev.addEventListener("click", goPrev);
+    btnPageNext.addEventListener("click", goNext);
+    btnPagePrevBottom.addEventListener("click", goPrev);
+    btnPageNextBottom.addEventListener("click", goNext);
 }
 
-function renderInitialWorkersSkeleton() {
-    aiWorkersGrid.innerHTML = "";
-    currentWorkersList = [];
+function applyFiltersAndRender() {
+    filteredWorkers = allWorkers.filter(w => {
+        // Division filter
+        if (activeDivision !== "all" && w.division !== activeDivision) {
+            return false;
+        }
+        // Status filter
+        if (activeStatus !== "all" && w.status !== activeStatus) {
+            return false;
+        }
+        // Search query
+        if (searchQuery) {
+            const inTitle = w.title.toLowerCase().includes(searchQuery);
+            const inMsg = (w.details?.simple_message || "").toLowerCase().includes(searchQuery);
+            const inDiv = (w.division || "").toLowerCase().includes(searchQuery);
+            if (!inTitle && !inMsg && !inDiv) {
+                return false;
+            }
+        }
+        return true;
+    });
 
-    WORKERS_REGISTRY.forEach(w => {
+    renderGridPage();
+}
+
+function renderGridPage() {
+    const total = filteredWorkers.length;
+    const maxPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (currentPage > maxPages) currentPage = maxPages;
+
+    const startIdx = (currentPage - 1) * PAGE_SIZE;
+    const endIdx = Math.min(total, startIdx + PAGE_SIZE);
+    const pageItems = filteredWorkers.slice(startIdx, endIdx);
+
+    const infoText = total === 0 ? "No matching parameters found" : `Showing ${startIdx + 1}–${endIdx} of ${total.toLocaleString()} AI Parameters`;
+    gridShowingText.textContent = infoText;
+    gridShowingTextBottom.textContent = infoText;
+
+    const pageText = `${currentPage} / ${maxPages}`;
+    gridPageNum.textContent = pageText;
+    gridPageNumBottom.textContent = pageText;
+
+    btnPagePrev.disabled = currentPage <= 1;
+    btnPageNext.disabled = currentPage >= maxPages;
+    btnPagePrevBottom.disabled = currentPage <= 1;
+    btnPageNextBottom.disabled = currentPage >= maxPages;
+
+    aiWorkersGrid.innerHTML = "";
+
+    if (pageItems.length === 0) {
+        aiWorkersGrid.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-slate-500">No parameters match your search query. Try typing another keyword.</div>`;
+        return;
+    }
+
+    pageItems.forEach(w => {
         const card = document.createElement("div");
         card.id = `worker-${w.id}`;
-        card.setAttribute("data-division", w.division);
-        card.className = "ai-worker-card rounded-lg p-3.5 flex flex-col justify-between text-left transition shadow-xs";
-        card.onclick = () => openWorkerModal(w.id);
+        card.className = `ai-worker-card rounded-lg p-3 flex flex-col justify-between text-left transition shadow-xs ${w.status === 'critical' ? 'border-rose-300 bg-rose-50/30' : (w.status === 'warning' ? 'border-amber-300 bg-amber-50/30' : '')}`;
+        card.onclick = () => openWorkerModal(w);
+
+        let badgeClass = "bg-emerald-100 text-emerald-800";
+        let badgeLabel = "PASSED";
+        if (w.status === "critical") {
+            badgeClass = "bg-rose-100 text-rose-800 font-bold";
+            badgeLabel = "FAIL";
+        } else if (w.status === "warning") {
+            badgeClass = "bg-amber-100 text-amber-800 font-bold";
+            badgeLabel = "WARN";
+        }
 
         card.innerHTML = `
-            <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-2">
-                    <span class="w-7 h-7 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center text-xs worker-icon">
-                        <i class="${w.icon}"></i>
-                    </span>
-                    <span class="text-[11px] font-medium text-slate-500">${w.division}</span>
-                </div>
-                <span class="worker-badge text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">READY</span>
+            <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-medium text-slate-500 truncate max-w-[140px]">${w.division}</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded-full font-mono ${badgeClass}">${badgeLabel}</span>
             </div>
             <div>
-                <h5 class="font-bold text-xs text-slate-900 truncate">${w.title}</h5>
-                <p class="worker-msg text-xs text-slate-600 mt-1 line-clamp-2">Waiting to inspect site...</p>
+                <h5 class="font-bold text-xs text-slate-900 truncate">${escapeHtml(w.title)}</h5>
+                <p class="text-[11px] ${w.status === 'critical' ? 'text-rose-900 font-medium' : (w.status === 'warning' ? 'text-amber-900' : 'text-slate-600')} mt-1 line-clamp-2">
+                    ${escapeHtml(w.details?.simple_message || 'Parameter check passed.')}
+                </p>
             </div>
-            <div class="worker-action text-[11px] text-blue-700 font-medium mt-2 flex items-center gap-1">
-                <span>View Details</span> <i class="fa-solid fa-angle-right text-[9px]"></i>
+            <div class="text-[10px] text-blue-700 font-medium mt-2 flex items-center justify-between">
+                <span>View Details</span>
+                <i class="fa-solid fa-angle-right text-[8px]"></i>
             </div>
         `;
 
         aiWorkersGrid.appendChild(card);
-        currentWorkersList.push({
-            id: w.id,
-            title: w.title,
-            division: w.division,
-            icon: w.icon,
-            status: "ready",
-            details: { simple_message: "Waiting for scan...", fix_advice: "No action needed." }
-        });
     });
-}
-
-function updateWorkerCard(nodeId, status, details = {}) {
-    const card = document.getElementById(`worker-${nodeId}`);
-    if (!card) return;
-
-    const badge = card.querySelector(".worker-badge");
-    const msg = card.querySelector(".worker-msg");
-    const icon = card.querySelector(".worker-icon");
-
-    // Reset styles
-    card.classList.remove("border-rose-300", "border-amber-300", "border-emerald-300", "bg-rose-50/40", "bg-amber-50/40");
-
-    const wItem = currentWorkersList.find(x => x.id === nodeId);
-    if (wItem) {
-        wItem.status = status;
-        wItem.details = details;
-    }
-
-    if (status === "critical") {
-        card.classList.add("border-rose-300", "bg-rose-50/30");
-        badge.className = "worker-badge text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold";
-        badge.textContent = "CRITICAL FAIL";
-        icon.className = "w-7 h-7 rounded-md bg-rose-100 text-rose-700 flex items-center justify-center text-xs worker-icon";
-        msg.textContent = details.simple_message || "Critical failure found.";
-        msg.className = "worker-msg text-xs text-rose-900 font-medium mt-1 line-clamp-2";
-    } else if (status === "warning") {
-        card.classList.add("border-amber-300", "bg-amber-50/30");
-        badge.className = "worker-badge text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold";
-        badge.textContent = "WARNING";
-        icon.className = "w-7 h-7 rounded-md bg-amber-100 text-amber-700 flex items-center justify-center text-xs worker-icon";
-        msg.textContent = details.simple_message || "Warning found.";
-        msg.className = "worker-msg text-xs text-amber-900 font-medium mt-1 line-clamp-2";
-    } else {
-        badge.className = "worker-badge text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold";
-        badge.textContent = "PASSED";
-        icon.className = "w-7 h-7 rounded-md bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs worker-icon";
-        msg.textContent = details.simple_message || "Passed inspection.";
-        msg.className = "worker-msg text-xs text-slate-700 mt-1 line-clamp-2";
-    }
 }
 
 // Start Audit (Dual-Transport: WebSocket with seamless HTTP REST Fallback)
@@ -275,10 +275,8 @@ function startAudit(url) {
     btnAnalyze.disabled = true;
     liveStatusBar.classList.remove("hidden");
     resultsWrapper.classList.remove("hidden");
-    liveStatusText.textContent = `Running 50 AI worker parameters on: ${url}`;
-    liveStatusSub.textContent = "Checking network, assets, code crashes, APIs, and mobile readiness...";
-
-    renderInitialWorkersSkeleton();
+    liveStatusText.textContent = `Deploying 2,000 AI parameter verification grid on: ${url}`;
+    liveStatusSub.textContent = "Testing network, scripts, DOM, crashes, APIs, mobile viewports, and security...";
 
     const { httpBase, wsBase } = getEndpoints();
 
@@ -297,7 +295,7 @@ function startAudit(url) {
             if (socket) {
                 try { socket.close(); } catch (e) {}
             }
-            console.warn("WebSocket timeout. Seamlessly falling back to HTTP REST audit.");
+            console.warn("WebSocket timeout. Seamlessly running 2,000 AI parameters via HTTP REST.");
             runHttpAudit(url, httpBase);
         }
     }, 2000);
@@ -319,14 +317,11 @@ function startAudit(url) {
                 const msg = JSON.parse(event.data);
 
                 if (msg.type === "crawl_started") {
-                    liveStatusText.textContent = "Inspecting website code & resources...";
+                    liveStatusText.textContent = "Crawling site assets & building 2,000 AI parameter matrix...";
                     liveStatusSub.textContent = msg.message;
                 } else if (msg.type === "crawl_completed") {
-                    liveStatusText.textContent = "Evaluating 50 specialized AI parameters...";
-                    liveStatusSub.textContent = "Testing for buttons, scripts, links, and crash traps...";
-                } else if (msg.type === "node_update") {
-                    const node = msg.node;
-                    updateWorkerCard(node.node_id, node.status, node.details);
+                    liveStatusText.textContent = "Evaluating 2,000 specialized AI parameter checkpoints...";
+                    liveStatusSub.textContent = "Calculating failure points across 10 master divisions...";
                 } else if (msg.type === "audit_completed") {
                     liveStatusBar.classList.add("hidden");
                     btnAnalyze.disabled = false;
@@ -365,7 +360,7 @@ function startAudit(url) {
 // HTTP REST Audit Engine
 async function runHttpAudit(url, httpBase) {
     liveStatusText.textContent = `Inspecting website: ${url}`;
-    liveStatusSub.textContent = "Running 50 AI worker parameters via REST engine...";
+    liveStatusSub.textContent = "Running 2,000 AI parameter verification grid via REST engine...";
 
     try {
         const res = await fetch(`${httpBase}/api/analyze`, {
@@ -382,12 +377,6 @@ async function runHttpAudit(url, httpBase) {
         const data = await res.json();
         const fullData = data.full_data || {};
 
-        // Update each worker card
-        const nodes = fullData.tree_data?.nodes || {};
-        for (const [nid, node] of Object.entries(nodes)) {
-            updateWorkerCard(nid, node.status, node.details);
-        }
-
         liveStatusBar.classList.add("hidden");
         btnAnalyze.disabled = false;
         currentAuditId = data.audit_id;
@@ -396,7 +385,7 @@ async function runHttpAudit(url, httpBase) {
         refreshHistory();
     } catch (err) {
         liveStatusText.textContent = `Audit notice: ${err.message}`;
-        liveStatusSub.textContent = `Make sure the server is running at ${httpBase}.`;
+        liveStatusSub.textContent = `Ensure server is running at ${httpBase}.`;
         btnAnalyze.disabled = false;
     }
 }
@@ -408,12 +397,34 @@ function renderAuditReport(data) {
     const crashNode = tree.synthesis_crash_pinpointer?.details || {};
     const autofixNode = tree.synthesis_autofix?.details || {};
 
-    // 1. Health Score Cards
+    // 1. Convert all 2,000 nodes into workers list
+    allWorkers = [];
+    let critCount = 0;
+    let warnCount = 0;
+
+    for (const [nid, node] of Object.entries(tree)) {
+        if (nid.startsWith("param_")) {
+            allWorkers.push({
+                id: nid,
+                title: node.title,
+                division: node.division,
+                status: node.status,
+                details: node.details
+            });
+            if (node.status === "critical") critCount++;
+            else if (node.status === "warning") warnCount++;
+        }
+    }
+
+    statusFilterCritCount.textContent = critCount;
+    statusFilterWarnCount.textContent = warnCount;
+
+    // 2. Health Score Cards
     const score = summary.overall_health_score ?? 100;
     metricHealthScore.textContent = `${score}/100`;
-    metricCriticalCount.textContent = summary.critical_issues_count ?? 0;
-    metricWarningCount.textContent = summary.warning_issues_count ?? 0;
-    metricPassedCount.textContent = `${summary.healthy_checks_count ?? 50}/50`;
+    metricCriticalCount.textContent = summary.critical_issues_count ?? critCount;
+    metricWarningCount.textContent = summary.warning_issues_count ?? warnCount;
+    metricPassedCount.textContent = `${summary.total_ai_workers || allWorkers.length || 2000}`;
 
     if (score >= 80) {
         metricHealthIcon.className = "w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-xl";
@@ -426,13 +437,15 @@ function renderAuditReport(data) {
         metricHealthIcon.innerHTML = `<i class="fa-solid fa-circle-xmark"></i>`;
     }
 
-    // 2. CRASH POINT SPOTLIGHT BANNER (SIMPLE PLAIN ENGLISH)
+    // 3. CRASH POINT SPOTLIGHT BANNER (SIMPLE PLAIN ENGLISH)
     renderSimpleCrashSpotlight(summary.site_crashes, crashNode);
 
-    // 3. Simple Fix Card
+    // 4. Simple Fix Card
     renderSimpleAutoFix(autofixNode);
 
-    applyDivisionFilter();
+    // 5. Render Grid with filters and pagination
+    currentPage = 1;
+    applyFiltersAndRender();
 }
 
 function renderSimpleCrashSpotlight(siteCrashes, crashNode) {
@@ -466,7 +479,7 @@ function renderSimpleCrashSpotlight(siteCrashes, crashNode) {
             <span class="text-xs font-bold uppercase px-3 py-1 rounded-full border ${badgeClass}">
                 ${badgeText}
             </span>
-            <span class="text-xs text-slate-500">50 AI Workers Evaluated</span>
+            <span class="text-xs text-slate-500 font-medium">2,000 AI Parameters Checked</span>
         </div>
         <div class="mt-3">
             <h3 class="text-base font-bold text-slate-900">${escapeHtml(crashNode.point_of_failure || 'Audit completed successfully.')}</h3>
@@ -504,7 +517,7 @@ function renderSimpleAutoFix(fix) {
         </div>
 
         <div class="relative rounded-lg overflow-hidden bg-slate-900 border border-slate-800 p-4 font-mono text-xs text-slate-100">
-            <pre id="code-diff-content" class="overflow-x-auto whitespace-pre">${escapeHtml(fix.code_diff || '// All tests passed. No code change needed.')}</pre>
+            <pre id="code-diff-content" class="overflow-x-auto whitespace-pre">${escapeHtml(fix.code_diff || '// All 2,000 tests passed. No code change needed.')}</pre>
         </div>
 
         ${instructionsHtml ? `
@@ -535,20 +548,17 @@ function copyCodeDiff() {
 }
 
 // Open Worker Details Modal
-function openWorkerModal(workerId) {
-    const w = currentWorkersList.find(x => x.id === workerId);
-    if (!w) return;
-
+function openWorkerModal(w) {
     modalNodeTitle.textContent = w.title;
     modalNodeStatus.textContent = w.status.toUpperCase();
     modalNodeIcon.className = `w-10 h-10 rounded-lg flex items-center justify-center text-lg ${w.status === 'critical' ? 'bg-rose-50 text-rose-600' : (w.status === 'warning' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600')}`;
-    modalNodeIcon.innerHTML = `<i class="${w.icon}"></i>`;
+    modalNodeIcon.innerHTML = `<i class="${w.status === 'critical' ? 'fa-solid fa-circle-xmark' : (w.status === 'warning' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-check')}"></i>`;
 
     const details = w.details || {};
     modalNodeContent.innerHTML = `
         <div class="space-y-3">
             <div>
-                <span class="text-xs font-bold text-slate-900">What this AI worker checked:</span>
+                <span class="text-xs font-bold text-slate-900">What this AI parameter verified:</span>
                 <p class="text-xs text-slate-700 mt-0.5">${escapeHtml(details.simple_message || 'Inspected site parameters.')}</p>
             </div>
             ${details.fix_advice ? `
@@ -558,7 +568,7 @@ function openWorkerModal(workerId) {
                 </div>
             ` : ''}
             <div class="text-[11px] text-slate-500">
-                Division: <span class="font-medium text-slate-700">${w.division}</span>
+                Division: <span class="font-medium text-slate-700">${w.division}</span> &bull; Vector ID: <span class="font-mono text-slate-700">${w.id}</span>
             </div>
         </div>
     `;
@@ -602,7 +612,7 @@ async function refreshHistory() {
                         Score: ${item.health_score}/100
                     </span>
                 </div>
-                <p class="text-[11px] text-slate-500 truncate">${escapeHtml(item.crash_point || 'Passed all checks')}</p>
+                <p class="text-[11px] text-slate-500 truncate">${escapeHtml(item.crash_point || 'Passed 2,000 checks')}</p>
             </div>
         `).join("");
     } catch (err) {
@@ -620,12 +630,6 @@ async function loadPastAudit(auditId) {
         historyDrawer.classList.add("translate-x-full");
         resultsWrapper.classList.remove("hidden");
         targetUrlInput.value = data.target_url;
-
-        renderInitialWorkersSkeleton();
-        const nodes = data.tree_data?.nodes || {};
-        for (const [nid, node] of Object.entries(nodes)) {
-            updateWorkerCard(nid, node.status, node.details);
-        }
 
         renderAuditReport(data);
     } catch (err) {
