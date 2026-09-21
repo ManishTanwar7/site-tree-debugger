@@ -1,106 +1,76 @@
-/* SiteTree Debugger Stylesheet */
+/* SiteTree Debugger - Formal Professional Edition Stylesheet */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background-color: #0B0F19;
-    color: #F1F5F9;
+    background-color: #F8FAFC;
+    color: #0F172A;
 }
 
 pre, code, .font-mono {
     font-family: 'JetBrains Mono', monospace;
 }
 
-/* Custom Scrollbars */
+/* Formal Clean Scrollbars */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: #0B0F19;
+    background: #F1F5F9;
 }
 ::-webkit-scrollbar-thumb {
-    background: #1E293B;
+    background: #CBD5E1;
     border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: #94A3B8;
 }
 
-/* Animated Pulse Rings */
-@keyframes ring-pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
-    }
-}
-
-.tree-node-running {
-    animation: ring-pulse 1.8s infinite;
-    border-color: #6366f1 !important;
-}
-
-/* Tree Structure Styling */
-.tree-node {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+/* Formal AI Worker Cards */
+.ai-worker-card {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
     cursor: pointer;
-    background: #131B2E;
-    border: 1px solid #1E293B;
 }
 
-.tree-node:hover {
+.ai-worker-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
-    border-color: #3b82f6;
+    box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+    border-color: #3B82F6;
 }
 
-/* Connecting Lines for Tree Hierarchy */
-.tree-connector-v {
-    width: 2px;
-    background: linear-gradient(to bottom, #4f46e5, #334155);
-    margin: 0 auto;
-}
-
-.tree-connector-h {
-    height: 2px;
-    background: #334155;
-}
-
-/* Crash Banner Gradients */
+/* Crash Banner Gradients (Formal Soft Tints) */
 .crash-banner-critical {
-    background: linear-gradient(135deg, rgba(225, 29, 72, 0.15) 0%, rgba(136, 19, 55, 0.25) 100%);
-    border-color: rgba(244, 63, 94, 0.4);
+    background: #FFF1F2;
+    border: 1px solid #FECDD3;
 }
 
 .crash-banner-warning {
-    background: linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(120, 53, 15, 0.25) 100%);
-    border-color: rgba(245, 158, 11, 0.4);
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
 }
 
 .crash-banner-healthy {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 78, 59, 0.2) 100%);
-    border-color: rgba(16, 185, 129, 0.4);
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
 }
 
 /* Code Diff Blocks */
 .diff-del {
-    background-color: rgba(244, 63, 94, 0.15);
-    color: #fda4af;
+    background-color: #FFE4E6;
+    color: #9F1239;
     display: block;
-    padding: 0.1rem 0.5rem;
-    border-left: 3px solid #f43f5e;
+    padding: 0.2rem 0.6rem;
+    border-left: 3px solid #E11D48;
 }
 
 .diff-add {
-    background-color: rgba(16, 185, 129, 0.15);
-    color: #6ee7b7;
+    background-color: #DCFCE7;
+    color: #166534;
     display: block;
-    padding: 0.1rem 0.5rem;
-    border-left: 3px solid #10b981;
+    padding: 0.2rem 0.6rem;
+    border-left: 3px solid #16A34A;
 }

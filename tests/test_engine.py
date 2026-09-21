@@ -57,15 +57,19 @@ async def run_test():
     tree_results = await tree_engine.run_tree_analysis(mock_crawl_data)
     
     assert "root_orchestrator" in tree_results["nodes"], "Root orchestrator must be present"
-    assert "branch_scripts" in tree_results["nodes"], "Script branch must be present"
+    assert "w11_script_bundle_404" in tree_results["nodes"], "Worker 11 (script bundle) must be present"
+    assert "w21_null_deref" in tree_results["nodes"], "Worker 21 (null deref) must be present"
     assert "synthesis_crash_pinpointer" in tree_results["nodes"], "Crash pinpointer must be present"
     assert "synthesis_autofix" in tree_results["nodes"], "Autofix synthesizer must be present"
 
     summary = tree_results["summary"]
-    print(f"  Summary: site_crashes={summary['site_crashes']}, crash_point='{summary['crash_point']}'")
-    assert summary["site_crashes"] is True, "Site should be flagged as crashing due to broken script bundle"
-    print("  [SUCCESS] Multi-AI Tree successfully flagged crash and pinpointed failure point!")
-    print("ALL TESTS PASSED SUCCESSFULLY!")
+    print(f"  Summary: site_crashes={summary['site_crashes']}")
+    print(f"  Failure Point: {summary['crash_point']}")
+    print(f"  Total AI Workers Evaluated: {summary['total_ai_workers']}")
+    assert summary["site_crashes"] is True, "Site should be flagged as crashing"
+    assert summary["total_ai_workers"] == 50, "Should evaluate exactly 50 AI worker parameters"
+    print("  [SUCCESS] 50 AI Worker Parameters successfully analyzed website and pinpointed crash!")
+    print("ALL 50-AI TESTS PASSED SUCCESSFULLY!")
 
 if __name__ == "__main__":
     asyncio.run(run_test())

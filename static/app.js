@@ -1,13 +1,13 @@
 /**
- * SiteTree Debugger Frontend Engine
- * Dual-Transport: Real-time WebSocket + Automatic HTTP REST Fallback,
- * Interactive visual tree renderer, timeline pinpointer, and bug matrix.
+ * SiteTree Debugger - Formal Professional Edition
+ * 50 Specialized AI Worker Parameters with Simple Plain-English Explanations.
  */
 
 // State
 let currentAuditId = null;
 let currentAuditData = null;
-let currentNodesState = {};
+let currentWorkersList = [];
+let activeDivisionFilter = "all";
 
 // DOM Elements
 const auditForm = document.getElementById("audit-form");
@@ -18,7 +18,7 @@ const liveStatusBar = document.getElementById("live-status-bar");
 const liveStatusText = document.getElementById("live-status-text");
 const liveStatusSub = document.getElementById("live-status-sub");
 const resultsWrapper = document.getElementById("results-wrapper");
-const treeVisualizer = document.getElementById("ai-tree-visualizer");
+const aiWorkersGrid = document.getElementById("ai-workers-grid");
 const crashSpotlightCard = document.getElementById("crash-spotlight-card");
 const autofixCard = document.getElementById("autofix-card");
 
@@ -27,7 +27,7 @@ const metricHealthScore = document.getElementById("metric-health-score");
 const metricHealthIcon = document.getElementById("metric-health-icon");
 const metricCriticalCount = document.getElementById("metric-critical-count");
 const metricWarningCount = document.getElementById("metric-warning-count");
-const metricLatency = document.getElementById("metric-latency");
+const metricPassedCount = document.getElementById("metric-passed-count");
 
 // Modal
 const nodeModal = document.getElementById("node-modal");
@@ -61,7 +61,6 @@ function getEndpoints() {
     const proto = window.location.protocol;
     const host = window.location.host;
     
-    // If opened via file:/// or host is empty, fallback to local backend port 8000
     if (proto === "file:" || !host || host === "") {
         return {
             httpBase: "http://127.0.0.1:8000",
@@ -76,45 +75,78 @@ function getEndpoints() {
     };
 }
 
-// Define Tree Architecture Layout
-const TREE_STRUCTURE = [
-    {
-        level: 0,
-        label: "Root Level: Site Decomposer",
-        nodes: [
-            { id: "root_orchestrator", title: "Root Orchestrator", icon: "fa-solid fa-brain", role: "Site Intake & Task Decomposition" }
-        ]
-    },
-    {
-        level: 1,
-        label: "Domain Specialist Branches (Concurrent AI Models)",
-        nodes: [
-            { id: "branch_network", title: "Network & Security", icon: "fa-solid fa-shield-halved", role: "HTTP, SSL, CORS & Headers" },
-            { id: "branch_assets", title: "Asset & Dependencies", icon: "fa-solid fa-boxes-stacked", role: "Script & Style 404s" },
-            { id: "branch_dom", title: "DOM & Interaction", icon: "fa-solid fa-window-maximize", role: "Forms & Dead Links" },
-            { id: "branch_scripts", title: "Script Runtime Crash", icon: "fa-brands fa-js", role: "Null Derefs & Exceptions" },
-            { id: "branch_api", title: "API & Backend Tracer", icon: "fa-solid fa-server", role: "XHR/Fetch Connectivity" }
-        ]
-    },
-    {
-        level: 2,
-        label: "Diagnostic Synthesis & Auto-Remediation",
-        nodes: [
-            { id: "synthesis_crash_pinpointer", title: "Crash Point Pinpointer", icon: "fa-solid fa-crosshairs", role: "Traces Exact Point of Failure" },
-            { id: "synthesis_autofix", title: "Auto-Fix Synthesizer", icon: "fa-solid fa-screwdriver-wrench", role: "Produces Code Patches" }
-        ]
-    }
+// 50 AI Workers Static Registry for initial skeleton
+const WORKERS_REGISTRY = [
+    // Division 1: Network & Hosting (1-10)
+    { id: "w01_http_status", title: "1. Website Server Response", division: "Network & Hosting", icon: "fa-solid fa-server" },
+    { id: "w02_ssl_cert", title: "2. Security & HTTPS Lock", division: "Network & Hosting", icon: "fa-solid fa-lock" },
+    { id: "w03_speed_latency", title: "3. Loading Speed & Delay", division: "Network & Hosting", icon: "fa-solid fa-gauge-high" },
+    { id: "w04_redirect_loops", title: "4. Page Redirects", division: "Network & Hosting", icon: "fa-solid fa-arrow-turn-down" },
+    { id: "w05_mixed_content", title: "5. Insecure Mixed Content", division: "Network & Hosting", icon: "fa-solid fa-triangle-exclamation" },
+    { id: "w06_dns_connectivity", title: "6. Domain Connection", division: "Network & Hosting", icon: "fa-solid fa-globe" },
+    { id: "w07_cors_policy", title: "7. Browser Sharing (CORS)", division: "Network & Hosting", icon: "fa-solid fa-share-nodes" },
+    { id: "w08_compression", title: "8. File Compression (Gzip)", division: "Network & Hosting", icon: "fa-solid fa-file-zipper" },
+    { id: "w09_cache_headers", title: "9. Browser Cache Settings", division: "Network & Hosting", icon: "fa-solid fa-clock" },
+    { id: "w10_server_error_pages", title: "10. Clean Error Pages", division: "Network & Hosting", icon: "fa-solid fa-shield" },
+
+    // Division 2: Assets & Files (11-20)
+    { id: "w11_script_bundle_404", title: "11. JavaScript File Loading", division: "Assets & Files", icon: "fa-brands fa-js" },
+    { id: "w12_css_stylesheet_404", title: "12. Stylesheet (CSS) Loading", division: "Assets & Files", icon: "fa-solid fa-palette" },
+    { id: "w13_broken_images", title: "13. Image & Photo Availability", division: "Assets & Files", icon: "fa-solid fa-image" },
+    { id: "w14_external_cdns", title: "14. Third-Party CDNs", division: "Assets & Files", icon: "fa-solid fa-cloud-arrow-down" },
+    { id: "w15_font_loading", title: "15. Web Fonts & Typography", division: "Assets & Files", icon: "fa-solid fa-font" },
+    { id: "w16_favicon", title: "16. Tab Icon (Favicon)", division: "Assets & Files", icon: "fa-solid fa-star" },
+    { id: "w17_page_size", title: "17. Total HTML Page Weight", division: "Assets & Files", icon: "fa-solid fa-weight-scale" },
+    { id: "w18_script_defer", title: "18. Non-Blocking Scripts", division: "Assets & Files", icon: "fa-solid fa-bolt" },
+    { id: "w19_svg_icons", title: "19. Vector Icons & Graphics", division: "Assets & Files", icon: "fa-solid fa-shapes" },
+    { id: "w20_iframe_embeds", title: "20. Embedded Frames & Widgets", division: "Assets & Files", icon: "fa-solid fa-window-restore" },
+
+    // Division 3: JavaScript & Crashes (21-30)
+    { id: "w21_null_deref", title: "21. Missing Button Click Crash", division: "JavaScript & Crashes", icon: "fa-solid fa-arrow-pointer" },
+    { id: "w22_missing_library", title: "22. Missing Library Crash", division: "JavaScript & Crashes", icon: "fa-solid fa-box-open" },
+    { id: "w23_unhandled_promise", title: "23. Frozen UI on Network Glitch", division: "JavaScript & Crashes", icon: "fa-solid fa-snowflake" },
+    { id: "w24_storage_parse", title: "24. Local Storage Saved Data Crash", division: "JavaScript & Crashes", icon: "fa-solid fa-database" },
+    { id: "w25_missing_inline_func", title: "25. Button Calls Missing Function", division: "JavaScript & Crashes", icon: "fa-solid fa-hand-pointer" },
+    { id: "w26_dom_ready_timing", title: "26. Script Execution Timing", division: "JavaScript & Crashes", icon: "fa-solid fa-hourglass-start" },
+    { id: "w27_infinite_loops", title: "27. Infinite Loop Protection", division: "JavaScript & Crashes", icon: "fa-solid fa-repeat" },
+    { id: "w28_variable_scope", title: "28. Global Variable Scope", division: "JavaScript & Crashes", icon: "fa-solid fa-code" },
+    { id: "w29_event_listener_cleanup", title: "29. Memory & Event Handlers", division: "JavaScript & Crashes", icon: "fa-solid fa-microchip" },
+    { id: "w30_json_validity", title: "30. Client JSON Data Integrity", division: "JavaScript & Crashes", icon: "fa-solid fa-file-code" },
+
+    // Division 4: APIs & Forms (31-40)
+    { id: "w31_broken_api_routes", title: "31. Backend API Endpoint Health", division: "APIs & Forms", icon: "fa-solid fa-network-wired" },
+    { id: "w32_localhost_leak", title: "32. Accidental 'localhost' Leak", division: "APIs & Forms", icon: "fa-solid fa-laptop-code" },
+    { id: "w33_form_action", title: "33. Form Submit Action", division: "APIs & Forms", icon: "fa-solid fa-paper-plane" },
+    { id: "w34_missing_submit_btn", title: "34. Form Submit Button Presence", division: "APIs & Forms", icon: "fa-solid fa-square-check" },
+    { id: "w35_api_timeout_hang", title: "35. API Response Speed", division: "APIs & Forms", icon: "fa-solid fa-stopwatch" },
+    { id: "w36_input_types", title: "36. Input Fields Setup", division: "APIs & Forms", icon: "fa-solid fa-keyboard" },
+    { id: "w37_cors_api_block", title: "37. API Cross-Origin Permissions", division: "APIs & Forms", icon: "fa-solid fa-shield-virus" },
+    { id: "w38_api_content_type", title: "38. Data Request Headers (JSON)", division: "APIs & Forms", icon: "fa-solid fa-brackets-curly" },
+    { id: "w39_url_search_params", title: "39. Link Query Parameters", division: "APIs & Forms", icon: "fa-solid fa-magnifying-glass" },
+    { id: "w40_session_storage", title: "40. User Login & Session Persistence", division: "APIs & Forms", icon: "fa-solid fa-user-shield" },
+
+    // Division 5: User Experience & Security (41-50)
+    { id: "w41_mobile_viewport", title: "41. Mobile Phone Compatibility Tag", division: "User Experience & Security", icon: "fa-solid fa-mobile-screen" },
+    { id: "w42_dead_internal_links", title: "42. Broken Links (404 Not Found)", division: "User Experience & Security", icon: "fa-solid fa-link-slash" },
+    { id: "w43_page_title_seo", title: "43. Website Title in Browser Tab", division: "User Experience & Security", icon: "fa-solid fa-window-maximize" },
+    { id: "w44_charset", title: "44. Text Characters & Language (UTF-8)", division: "User Experience & Security", icon: "fa-solid fa-language" },
+    { id: "w45_security_headers", title: "45. Security Shield Headers (X-Frame)", division: "User Experience & Security", icon: "fa-solid fa-shield-halved" },
+    { id: "w46_content_type_options", title: "46. File Type Sniffing Protection", division: "User Experience & Security", icon: "fa-solid fa-file-shield" },
+    { id: "w47_external_link_safety", title: "47. External Link Security", division: "User Experience & Security", icon: "fa-solid fa-arrow-up-right-from-square" },
+    { id: "w48_readable_text", title: "48. Page Content & Text Structure", division: "User Experience & Security", icon: "fa-solid fa-align-left" },
+    { id: "w49_responsive_layout", title: "49. Responsive Page Layout", division: "User Experience & Security", icon: "fa-solid fa-table-columns" },
+    { id: "w50_overall_crash_synthesis", title: "50. Master Crash & Failure Synthesis", division: "User Experience & Security", icon: "fa-solid fa-circle-nodes" }
 ];
 
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {
-    initTabs();
+    initDivisionFilters();
     initSettings();
     initHistory();
-    renderInitialTreeSkeleton();
+    renderInitialWorkersSkeleton();
 });
 
-// Demo URL Handler
+// Demo URL Button
 btnDemoUrl.addEventListener("click", () => {
     const { httpBase } = getEndpoints();
     targetUrlInput.value = `${httpBase}/api/demo-broken-site`;
@@ -130,116 +162,126 @@ auditForm.addEventListener("submit", (e) => {
     startAudit(url);
 });
 
-function renderInitialTreeSkeleton() {
-    treeVisualizer.innerHTML = "";
-
-    TREE_STRUCTURE.forEach((tier, tierIdx) => {
-        const tierWrapper = document.createElement("div");
-        tierWrapper.className = "w-full flex flex-col items-center space-y-2";
-
-        const label = document.createElement("div");
-        label.className = "text-[11px] font-mono text-slate-400 uppercase tracking-wider";
-        label.textContent = tier.label;
-        tierWrapper.appendChild(label);
-
-        const nodesRow = document.createElement("div");
-        nodesRow.className = "flex flex-wrap justify-center gap-3 w-full";
-
-        tier.nodes.forEach(n => {
-            const card = document.createElement("div");
-            card.id = `node-${n.id}`;
-            card.className = "tree-node rounded-xl p-3 w-56 flex flex-col justify-between text-left transition border border-darkborder";
-            card.onclick = () => openNodeModal(n.id);
-
-            card.innerHTML = `
-                <div class="flex items-center justify-between mb-2">
-                    <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center node-icon">
-                        <i class="${n.icon}"></i>
-                    </div>
-                    <span class="node-badge text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">IDLE</span>
-                </div>
-                <div>
-                    <h5 class="font-bold text-xs text-white truncate">${n.title}</h5>
-                    <p class="text-[11px] text-slate-400 truncate">${n.role}</p>
-                </div>
-                <div class="node-status-text text-[10px] text-slate-400 mt-2 truncate">Waiting for input...</div>
-            `;
-            nodesRow.appendChild(card);
-            currentNodesState[n.id] = { title: n.title, icon: n.icon, status: "idle", details: {} };
+function initDivisionFilters() {
+    const filterBtns = document.querySelectorAll(".div-filter-btn");
+    filterBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            filterBtns.forEach(b => {
+                b.className = "div-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 cursor-pointer";
+            });
+            btn.className = "div-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200 cursor-pointer";
+            activeDivisionFilter = btn.getAttribute("data-filter");
+            applyDivisionFilter();
         });
-
-        tierWrapper.appendChild(nodesRow);
-
-        // Connector line between tiers
-        if (tierIdx < TREE_STRUCTURE.length - 1) {
-            const conn = document.createElement("div");
-            conn.className = "w-0.5 h-6 bg-slate-700/80 my-1";
-            tierWrapper.appendChild(conn);
-        }
-
-        treeVisualizer.appendChild(tierWrapper);
     });
 }
 
-function updateNodeVisual(nodeId, status, details = {}) {
-    const card = document.getElementById(`node-${nodeId}`);
+function applyDivisionFilter() {
+    const cards = document.querySelectorAll(".ai-worker-card");
+    cards.forEach(c => {
+        const div = c.getAttribute("data-division");
+        if (activeDivisionFilter === "all" || div === activeDivisionFilter) {
+            c.classList.remove("hidden");
+        } else {
+            c.classList.add("hidden");
+        }
+    });
+}
+
+function renderInitialWorkersSkeleton() {
+    aiWorkersGrid.innerHTML = "";
+    currentWorkersList = [];
+
+    WORKERS_REGISTRY.forEach(w => {
+        const card = document.createElement("div");
+        card.id = `worker-${w.id}`;
+        card.setAttribute("data-division", w.division);
+        card.className = "ai-worker-card rounded-lg p-3.5 flex flex-col justify-between text-left transition shadow-xs";
+        card.onclick = () => openWorkerModal(w.id);
+
+        card.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center text-xs worker-icon">
+                        <i class="${w.icon}"></i>
+                    </span>
+                    <span class="text-[11px] font-medium text-slate-500">${w.division}</span>
+                </div>
+                <span class="worker-badge text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">READY</span>
+            </div>
+            <div>
+                <h5 class="font-bold text-xs text-slate-900 truncate">${w.title}</h5>
+                <p class="worker-msg text-xs text-slate-600 mt-1 line-clamp-2">Waiting to inspect site...</p>
+            </div>
+            <div class="worker-action text-[11px] text-blue-700 font-medium mt-2 flex items-center gap-1">
+                <span>View Details</span> <i class="fa-solid fa-angle-right text-[9px]"></i>
+            </div>
+        `;
+
+        aiWorkersGrid.appendChild(card);
+        currentWorkersList.push({
+            id: w.id,
+            title: w.title,
+            division: w.division,
+            icon: w.icon,
+            status: "ready",
+            details: { simple_message: "Waiting for scan...", fix_advice: "No action needed." }
+        });
+    });
+}
+
+function updateWorkerCard(nodeId, status, details = {}) {
+    const card = document.getElementById(`worker-${nodeId}`);
     if (!card) return;
 
-    const badge = card.querySelector(".node-badge");
-    const statusText = card.querySelector(".node-status-text");
-    const iconBox = card.querySelector(".node-icon");
+    const badge = card.querySelector(".worker-badge");
+    const msg = card.querySelector(".worker-msg");
+    const icon = card.querySelector(".worker-icon");
 
-    card.classList.remove("tree-node-running", "border-rose-500", "border-amber-500", "border-emerald-500", "border-indigo-500");
+    // Reset styles
+    card.classList.remove("border-rose-300", "border-amber-300", "border-emerald-300", "bg-rose-50/40", "bg-amber-50/40");
 
-    if (currentNodesState[nodeId]) {
-        currentNodesState[nodeId].status = status;
-        currentNodesState[nodeId].details = details;
+    const wItem = currentWorkersList.find(x => x.id === nodeId);
+    if (wItem) {
+        wItem.status = status;
+        wItem.details = details;
     }
 
-    if (status === "running") {
-        card.classList.add("tree-node-running");
-        badge.className = "node-badge text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 font-mono animate-pulse";
-        badge.textContent = "RUNNING";
-        iconBox.className = "w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center node-icon";
-        statusText.textContent = details.thought || "Analyzing telemetry...";
-        statusText.className = "node-status-text text-[10px] text-indigo-300 mt-2 truncate";
-    } else if (status === "critical") {
-        card.classList.add("border-rose-500");
-        badge.className = "node-badge text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 font-mono";
-        badge.textContent = "CRASH / BUG";
-        iconBox.className = "w-8 h-8 rounded-lg bg-rose-600/20 text-rose-400 flex items-center justify-center node-icon";
-        statusText.textContent = details.diagnosis || details.point_of_failure || "Critical hazard detected";
-        statusText.className = "node-status-text text-[10px] text-rose-400 mt-2 truncate";
+    if (status === "critical") {
+        card.classList.add("border-rose-300", "bg-rose-50/30");
+        badge.className = "worker-badge text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold";
+        badge.textContent = "CRITICAL FAIL";
+        icon.className = "w-7 h-7 rounded-md bg-rose-100 text-rose-700 flex items-center justify-center text-xs worker-icon";
+        msg.textContent = details.simple_message || "Critical failure found.";
+        msg.className = "worker-msg text-xs text-rose-900 font-medium mt-1 line-clamp-2";
     } else if (status === "warning") {
-        card.classList.add("border-amber-500");
-        badge.className = "node-badge text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-mono";
+        card.classList.add("border-amber-300", "bg-amber-50/30");
+        badge.className = "worker-badge text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold";
         badge.textContent = "WARNING";
-        iconBox.className = "w-8 h-8 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center node-icon";
-        statusText.textContent = details.diagnosis || "Warning items found";
-        statusText.className = "node-status-text text-[10px] text-amber-400 mt-2 truncate";
-    } else if (status === "healthy" || status === "completed") {
-        card.classList.add("border-emerald-500");
-        badge.className = "node-badge text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono";
+        icon.className = "w-7 h-7 rounded-md bg-amber-100 text-amber-700 flex items-center justify-center text-xs worker-icon";
+        msg.textContent = details.simple_message || "Warning found.";
+        msg.className = "worker-msg text-xs text-amber-900 font-medium mt-1 line-clamp-2";
+    } else {
+        badge.className = "worker-badge text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold";
         badge.textContent = "PASSED";
-        iconBox.className = "w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center node-icon";
-        statusText.textContent = details.diagnosis || "All checks passed";
-        statusText.className = "node-status-text text-[10px] text-emerald-400 mt-2 truncate";
+        icon.className = "w-7 h-7 rounded-md bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs worker-icon";
+        msg.textContent = details.simple_message || "Passed inspection.";
+        msg.className = "worker-msg text-xs text-slate-700 mt-1 line-clamp-2";
     }
 }
 
-// Start Audit: Tries WebSocket, gracefully and automatically falls back to HTTP REST
+// Start Audit (Dual-Transport: WebSocket with seamless HTTP REST Fallback)
 function startAudit(url) {
     btnAnalyze.disabled = true;
     liveStatusBar.classList.remove("hidden");
     resultsWrapper.classList.remove("hidden");
-    liveStatusText.textContent = `Connecting to audit engine for: ${url}`;
-    liveStatusSub.textContent = "Initiating multi-model tree evaluation pipeline...";
+    liveStatusText.textContent = `Running 50 AI worker parameters on: ${url}`;
+    liveStatusSub.textContent = "Checking network, assets, code crashes, APIs, and mobile readiness...";
 
-    renderInitialTreeSkeleton();
+    renderInitialWorkersSkeleton();
 
     const { httpBase, wsBase } = getEndpoints();
 
-    // If opened directly from file system (file:///) or WebSocket is unavailable, use HTTP REST immediately
     if (window.location.protocol === "file:" || typeof WebSocket === "undefined") {
         runHttpAudit(url, httpBase);
         return;
@@ -249,14 +291,13 @@ function startAudit(url) {
     let wsTimedOut = false;
     let socket = null;
 
-    // Safety Watchdog: If WebSocket does not respond within 2 seconds, switch to HTTP REST API
     const wsWatchdog = setTimeout(() => {
         if (!wsHandshakeSuccess) {
             wsTimedOut = true;
             if (socket) {
                 try { socket.close(); } catch (e) {}
             }
-            console.warn("WebSocket watchdog triggered. Switching to HTTP REST engine.");
+            console.warn("WebSocket timeout. Seamlessly falling back to HTTP REST audit.");
             runHttpAudit(url, httpBase);
         }
     }, 2000);
@@ -266,7 +307,7 @@ function startAudit(url) {
         socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
-            liveStatusText.textContent = `Scraping & inspecting DOM: ${url}`;
+            liveStatusText.textContent = `Inspecting website: ${url}`;
             socket.send(JSON.stringify({ url }));
         };
 
@@ -278,15 +319,14 @@ function startAudit(url) {
                 const msg = JSON.parse(event.data);
 
                 if (msg.type === "crawl_started") {
-                    liveStatusText.textContent = "Crawling website resources...";
+                    liveStatusText.textContent = "Inspecting website code & resources...";
                     liveStatusSub.textContent = msg.message;
                 } else if (msg.type === "crawl_completed") {
-                    const s = msg.crawl_summary;
-                    liveStatusText.textContent = `Crawled ${s.scripts_found} scripts & ${s.broken_assets} broken assets. Launching Multi-AI Model Tree...`;
-                    liveStatusSub.textContent = `HTTP ${s.status_code} • Latency: ${s.latency_ms}ms • Hazards: ${s.runtime_hazards}`;
+                    liveStatusText.textContent = "Evaluating 50 specialized AI parameters...";
+                    liveStatusSub.textContent = "Testing for buttons, scripts, links, and crash traps...";
                 } else if (msg.type === "node_update") {
                     const node = msg.node;
-                    updateNodeVisual(node.node_id, node.status, node.details);
+                    updateWorkerCard(node.node_id, node.status, node.details);
                 } else if (msg.type === "audit_completed") {
                     liveStatusBar.classList.add("hidden");
                     btnAnalyze.disabled = false;
@@ -295,8 +335,7 @@ function startAudit(url) {
                     renderAuditReport(msg.full_data);
                     refreshHistory();
                 } else if (msg.type === "error") {
-                    liveStatusText.textContent = `Audit Error: ${msg.message}`;
-                    liveStatusSub.textContent = "Please verify the URL is accessible and try again.";
+                    liveStatusText.textContent = `Inspection notice: ${msg.message}`;
                     btnAnalyze.disabled = false;
                 }
             } catch (err) {
@@ -304,10 +343,9 @@ function startAudit(url) {
             }
         };
 
-        socket.onerror = (err) => {
+        socket.onerror = () => {
             if (!wsHandshakeSuccess && !wsTimedOut) {
                 clearTimeout(wsWatchdog);
-                console.warn("WebSocket error detected. Seamlessly falling back to HTTP REST audit...");
                 runHttpAudit(url, httpBase);
             }
         };
@@ -320,29 +358,14 @@ function startAudit(url) {
         };
     } catch (err) {
         clearTimeout(wsWatchdog);
-        console.warn("WebSocket initialization exception:", err);
         runHttpAudit(url, httpBase);
     }
 }
 
-// HTTP REST Audit Engine (100% reliable fallback)
+// HTTP REST Audit Engine
 async function runHttpAudit(url, httpBase) {
-    liveStatusText.textContent = `Auditing website via REST engine: ${url}`;
-    liveStatusSub.textContent = "Crawling HTML, scripts, stylesheets, and evaluating AI decision tree...";
-
-    // Animate nodes sequentially so the UI provides live visual feedback
-    updateNodeVisual("root_orchestrator", "running", { thought: `Analyzing site profile for ${url}...` });
-    
-    const branchTimer = setTimeout(() => {
-        ["branch_network", "branch_assets", "branch_dom", "branch_scripts", "branch_api"].forEach(bId => {
-            updateNodeVisual(bId, "running", { thought: "Model inspecting parameters..." });
-        });
-    }, 400);
-
-    const synthTimer = setTimeout(() => {
-        updateNodeVisual("synthesis_crash_pinpointer", "running", { thought: "Pinpointing failure points..." });
-        updateNodeVisual("synthesis_autofix", "running", { thought: "Synthesizing code fixes..." });
-    }, 1200);
+    liveStatusText.textContent = `Inspecting website: ${url}`;
+    liveStatusSub.textContent = "Running 50 AI worker parameters via REST engine...";
 
     try {
         const res = await fetch(`${httpBase}/api/analyze`, {
@@ -351,21 +374,18 @@ async function runHttpAudit(url, httpBase) {
             body: JSON.stringify({ url })
         });
 
-        clearTimeout(branchTimer);
-        clearTimeout(synthTimer);
-
         if (!res.ok) {
             const errData = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
-            throw new Error(errData.detail || `Server returned ${res.status}`);
+            throw new Error(errData.detail || `Server error ${res.status}`);
         }
 
         const data = await res.json();
         const fullData = data.full_data || {};
 
-        // Update each node in the tree with its real results
+        // Update each worker card
         const nodes = fullData.tree_data?.nodes || {};
         for (const [nid, node] of Object.entries(nodes)) {
-            updateNodeVisual(nid, node.status, node.details);
+            updateWorkerCard(nid, node.status, node.details);
         }
 
         liveStatusBar.classList.add("hidden");
@@ -375,69 +395,63 @@ async function runHttpAudit(url, httpBase) {
         renderAuditReport(fullData);
         refreshHistory();
     } catch (err) {
-        clearTimeout(branchTimer);
-        clearTimeout(synthTimer);
-        liveStatusText.textContent = `Audit Failed: ${err.message}`;
-        liveStatusSub.textContent = `Ensure the backend server is running at ${httpBase}. Click to retry.`;
+        liveStatusText.textContent = `Audit notice: ${err.message}`;
+        liveStatusSub.textContent = `Make sure the server is running at ${httpBase}.`;
         btnAnalyze.disabled = false;
-        console.error("HTTP audit failed:", err);
     }
 }
 
-// Render Complete Audit Report
+// Render Complete Audit Report with Simple Plain-English
 function renderAuditReport(data) {
     const summary = data.summary || {};
-    const crawl = data.crawl_data || {};
     const tree = data.tree_data?.nodes || {};
-
     const crashNode = tree.synthesis_crash_pinpointer?.details || {};
     const autofixNode = tree.synthesis_autofix?.details || {};
 
-    // 1. Metrics Strip
+    // 1. Health Score Cards
     const score = summary.overall_health_score ?? 100;
     metricHealthScore.textContent = `${score}/100`;
     metricCriticalCount.textContent = summary.critical_issues_count ?? 0;
     metricWarningCount.textContent = summary.warning_issues_count ?? 0;
-    metricLatency.textContent = `${crawl.latency_ms || 0} ms`;
+    metricPassedCount.textContent = `${summary.healthy_checks_count ?? 50}/50`;
 
     if (score >= 80) {
-        metricHealthIcon.className = "w-12 h-12 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl";
-        metricHealthIcon.innerHTML = `<i class="fa-solid fa-heart-pulse"></i>`;
+        metricHealthIcon.className = "w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-xl";
+        metricHealthIcon.innerHTML = `<i class="fa-solid fa-circle-check"></i>`;
     } else if (score >= 50) {
-        metricHealthIcon.className = "w-12 h-12 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xl";
+        metricHealthIcon.className = "w-12 h-12 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center text-xl";
         metricHealthIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>`;
     } else {
-        metricHealthIcon.className = "w-12 h-12 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center text-xl";
-        metricHealthIcon.innerHTML = `<i class="fa-solid fa-skull-crossbones"></i>`;
+        metricHealthIcon.className = "w-12 h-12 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center text-xl";
+        metricHealthIcon.innerHTML = `<i class="fa-solid fa-circle-xmark"></i>`;
     }
 
-    // 2. CRASH POINT SPOTLIGHT BANNER
-    renderCrashSpotlight(summary.site_crashes, crashNode);
+    // 2. CRASH POINT SPOTLIGHT BANNER (SIMPLE PLAIN ENGLISH)
+    renderSimpleCrashSpotlight(summary.site_crashes, crashNode);
 
-    // 3. Auto-Fix Card
-    renderAutoFixCard(autofixNode);
+    // 3. Simple Fix Card
+    renderSimpleAutoFix(autofixNode);
 
-    // 4. Update Tabs
-    renderTabsContent(crawl);
+    applyDivisionFilter();
 }
 
-function renderCrashSpotlight(siteCrashes, crashNode) {
+function renderSimpleCrashSpotlight(siteCrashes, crashNode) {
     const bannerClass = siteCrashes ? "crash-banner-critical" : (crashNode.has_warnings ? "crash-banner-warning" : "crash-banner-healthy");
-    const badgeText = siteCrashes ? "🚨 POINT OF FAILURE: EXACT POINT WHERE SITE STOPS WORKING" : (crashNode.has_warnings ? "⚠️ WARNING: NON-FATAL GLITCHES DETECTED" : "✅ SITE HEALTHY: NO CRITICAL CRASHES DETECTED");
-    const badgeColor = siteCrashes ? "bg-rose-500/20 text-rose-300 border-rose-500/40" : (crashNode.has_warnings ? "bg-amber-500/20 text-amber-300 border-amber-500/40" : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40");
+    const badgeText = siteCrashes ? "CRITICAL POINT OF FAILURE" : (crashNode.has_warnings ? "WEBSITE WORKING WITH WARNINGS" : "ALL SYSTEMS OPERATIONAL");
+    const badgeClass = siteCrashes ? "bg-rose-100 text-rose-800 border-rose-200" : (crashNode.has_warnings ? "bg-amber-100 text-amber-800 border-amber-200" : "bg-emerald-100 text-emerald-800 border-emerald-200");
 
     let timelineHtml = "";
-    if (crashNode.execution_timeline && crashNode.execution_timeline.length) {
+    if (crashNode.user_experience_timeline && crashNode.user_experience_timeline.length) {
         timelineHtml = `
-            <div class="mt-4 space-y-2">
-                <h5 class="text-xs font-mono uppercase text-slate-400 tracking-wider">Execution Failure Timeline:</h5>
+            <div class="mt-4 pt-4 border-t border-slate-200/60 space-y-2">
+                <h5 class="text-xs font-bold uppercase text-slate-700 tracking-wider">What Your Visitor Experiences (Step-by-Step):</h5>
                 <div class="space-y-1.5">
-                    ${crashNode.execution_timeline.map(step => {
-                        const isCrash = step.includes("[CRASH]") || step.includes("error") || step.includes("hazard");
+                    ${crashNode.user_experience_timeline.map(step => {
+                        const isFail = step.includes("[WEBSITE STOPS]") || step.includes("[CRASH]") || step.includes("error");
                         return `
                             <div class="flex items-start gap-2 text-xs">
-                                <span class="mt-0.5 ${isCrash ? 'text-rose-400' : 'text-slate-400'}"><i class="${isCrash ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-circle-check'}"></i></span>
-                                <span class="${isCrash ? 'text-rose-200 font-semibold' : 'text-slate-300'}">${escapeHtml(step)}</span>
+                                <span class="mt-0.5 ${isFail ? 'text-rose-600 font-bold' : 'text-slate-500'}"><i class="${isFail ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-circle-check text-emerald-600'}"></i></span>
+                                <span class="${isFail ? 'text-rose-900 font-semibold' : 'text-slate-700'}">${escapeHtml(step)}</span>
                             </div>
                         `;
                     }).join("")}
@@ -446,64 +460,65 @@ function renderCrashSpotlight(siteCrashes, crashNode) {
         `;
     }
 
-    crashSpotlightCard.className = `rounded-2xl border p-6 shadow-xl transition ${bannerClass}`;
+    crashSpotlightCard.className = `rounded-xl border p-6 shadow-sm transition ${bannerClass}`;
     crashSpotlightCard.innerHTML = `
         <div class="flex flex-wrap items-center justify-between gap-2">
-            <span class="text-xs font-mono uppercase px-3 py-1 rounded-full border ${badgeColor} font-bold flex items-center gap-1.5">
+            <span class="text-xs font-bold uppercase px-3 py-1 rounded-full border ${badgeClass}">
                 ${badgeText}
             </span>
-            <span class="text-xs text-slate-400">Model: ${crashNode.name || 'Crash Pinpointer Model'}</span>
+            <span class="text-xs text-slate-500">50 AI Workers Evaluated</span>
         </div>
         <div class="mt-3">
-            <h3 class="text-lg font-bold text-white">${escapeHtml(crashNode.point_of_failure || 'Analysis completed.')}</h3>
-            ${crashNode.root_cause ? `<p class="text-xs text-slate-300 mt-1"><span class="font-semibold text-rose-400">Root Cause:</span> ${escapeHtml(crashNode.root_cause)}</p>` : ''}
+            <h3 class="text-base font-bold text-slate-900">${escapeHtml(crashNode.point_of_failure || 'Audit completed successfully.')}</h3>
+            <p class="text-sm text-slate-700 mt-1">${escapeHtml(crashNode.simple_explanation || '')}</p>
+            ${crashNode.fix_tip ? `<p class="text-xs text-blue-700 font-medium mt-2"><span class="font-bold">Simple Fix Tip:</span> ${escapeHtml(crashNode.fix_tip)}</p>` : ''}
         </div>
         ${timelineHtml}
     `;
 }
 
-function renderAutoFixCard(fix) {
+function renderSimpleAutoFix(fix) {
     if (!fix) return;
 
-    let stepsHtml = "";
-    if (fix.remedy_steps && fix.remedy_steps.length) {
-        stepsHtml = fix.remedy_steps.map((s, idx) => `
-            <li class="flex items-start gap-2">
-                <span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] flex items-center justify-center font-mono mt-0.5">${idx + 1}</span>
-                <span>${escapeHtml(s)}</span>
+    let instructionsHtml = "";
+    if (fix.simple_instructions && fix.simple_instructions.length) {
+        instructionsHtml = fix.simple_instructions.map((step, idx) => `
+            <li class="flex items-start gap-2 text-xs text-slate-700">
+                <span class="w-4 h-4 rounded-full bg-blue-100 text-blue-800 text-[10px] flex items-center justify-center font-bold mt-0.5">${idx + 1}</span>
+                <span>${escapeHtml(step)}</span>
             </li>
         `).join("");
     }
 
     autofixCard.innerHTML = `
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-darkborder pb-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
             <div>
-                <h4 class="text-base font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i> ${escapeHtml(fix.patch_title || 'Recommended Auto-Fix')}
+                <h4 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-wrench text-blue-600"></i> ${escapeHtml(fix.patch_title || 'Recommended Fix')}
                 </h4>
-                <p class="text-xs text-slate-400">Actionable code patch and step-by-step remedy to prevent site crashes.</p>
+                <p class="text-xs text-slate-500 mt-0.5">Simple, step-by-step instructions to prevent your site from crashing.</p>
             </div>
-            <button onclick="copyCodeDiff()" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition flex items-center gap-1.5">
-                <i class="fa-solid fa-copy"></i> Copy Code Fix
+            <button onclick="copyCodeDiff()" class="text-xs px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition flex items-center gap-1.5 font-medium cursor-pointer">
+                <i class="fa-solid fa-copy"></i> Copy Safe Code
             </button>
         </div>
 
-        <div class="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 p-4 font-mono text-xs text-slate-200">
-            <pre id="code-diff-content" class="overflow-x-auto whitespace-pre">${escapeHtml(fix.code_diff || '// No code modification required')}</pre>
+        <div class="relative rounded-lg overflow-hidden bg-slate-900 border border-slate-800 p-4 font-mono text-xs text-slate-100">
+            <pre id="code-diff-content" class="overflow-x-auto whitespace-pre">${escapeHtml(fix.code_diff || '// All tests passed. No code change needed.')}</pre>
         </div>
 
-        ${stepsHtml ? `
-            <div class="space-y-2 text-xs text-slate-300">
-                <h5 class="font-bold text-white">Remediation Action Plan:</h5>
-                <ul class="space-y-1.5">${stepsHtml}</ul>
+        ${instructionsHtml ? `
+            <div class="space-y-2 pt-1">
+                <h5 class="text-xs font-bold text-slate-900 uppercase tracking-wider">How to Apply This Fix (3 Simple Steps):</h5>
+                <ul class="space-y-1.5">${instructionsHtml}</ul>
             </div>
         ` : ''}
 
-        ${fix.prevention_tip ? `
-            <div class="rounded-lg bg-indigo-950/40 border border-indigo-800/40 p-3 text-xs text-indigo-200 flex items-start gap-2.5">
-                <i class="fa-solid fa-lightbulb text-amber-400 mt-0.5"></i>
+        ${fix.plain_english_tip ? `
+            <div class="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900 flex items-start gap-2.5">
+                <i class="fa-solid fa-lightbulb text-amber-500 mt-0.5"></i>
                 <div>
-                    <span class="font-bold text-white">Pro Prevention Tip:</span> ${escapeHtml(fix.prevention_tip)}
+                    <span class="font-bold">Simple Advice:</span> ${escapeHtml(fix.plain_english_tip)}
                 </div>
             </div>
         ` : ''}
@@ -514,146 +529,40 @@ function copyCodeDiff() {
     const el = document.getElementById("code-diff-content");
     if (el) {
         navigator.clipboard.writeText(el.innerText).then(() => {
-            alert("Code fix copied to clipboard!");
+            alert("Code snippet copied to clipboard!");
         });
     }
 }
 
-// Render Tabs Content
-function renderTabsContent(crawl) {
-    const hazards = crawl.runtime_hazards || [];
-    const brokenAssets = crawl.broken_assets || [];
-    const apis = crawl.api_endpoints || [];
-    const forms = crawl.forms || [];
+// Open Worker Details Modal
+function openWorkerModal(workerId) {
+    const w = currentWorkersList.find(x => x.id === workerId);
+    if (!w) return;
 
-    document.getElementById("count-hazards").textContent = hazards.length;
-    document.getElementById("count-assets").textContent = brokenAssets.length;
-    document.getElementById("count-api").textContent = apis.length;
-    document.getElementById("count-forms").textContent = forms.length;
+    modalNodeTitle.textContent = w.title;
+    modalNodeStatus.textContent = w.status.toUpperCase();
+    modalNodeIcon.className = `w-10 h-10 rounded-lg flex items-center justify-center text-lg ${w.status === 'critical' ? 'bg-rose-50 text-rose-600' : (w.status === 'warning' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600')}`;
+    modalNodeIcon.innerHTML = `<i class="${w.icon}"></i>`;
 
-    // Hazards
-    const hazardsList = document.getElementById("hazards-list");
-    if (hazards.length === 0) {
-        hazardsList.innerHTML = `<p class="text-xs text-emerald-400 py-3">✅ No JavaScript null-dereferences, missing globals, or runtime crash traps detected!</p>`;
-    } else {
-        hazardsList.innerHTML = hazards.map(h => `
-            <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-mono font-bold ${h.severity === 'Critical' ? 'text-rose-400' : 'text-amber-400'} flex items-center gap-1.5">
-                        <i class="fa-solid fa-circle-exclamation"></i> ${escapeHtml(h.type)}
-                    </span>
-                    <span class="text-[10px] px-2 py-0.5 rounded font-mono ${h.severity === 'Critical' ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'}">${h.severity}</span>
-                </div>
-                <p class="text-xs text-slate-300">${escapeHtml(h.description)}</p>
-                ${h.code_snippet ? `<pre class="bg-black/50 p-2 rounded text-[11px] font-mono text-rose-300 overflow-x-auto">${escapeHtml(h.code_snippet)}</pre>` : ''}
-                <p class="text-[11px] text-slate-400"><span class="text-indigo-400 font-semibold">Trigger:</span> ${escapeHtml(h.trigger || 'On load')}</p>
-                <p class="text-[11px] text-emerald-400"><span class="font-semibold">Suggested Fix:</span> ${escapeHtml(h.fix_suggestion || 'Add check')}</p>
+    const details = w.details || {};
+    modalNodeContent.innerHTML = `
+        <div class="space-y-3">
+            <div>
+                <span class="text-xs font-bold text-slate-900">What this AI worker checked:</span>
+                <p class="text-xs text-slate-700 mt-0.5">${escapeHtml(details.simple_message || 'Inspected site parameters.')}</p>
             </div>
-        `).join("");
-    }
-
-    // Broken Assets
-    const assetsList = document.getElementById("assets-list");
-    if (brokenAssets.length === 0) {
-        assetsList.innerHTML = `<p class="text-xs text-emerald-400 py-3">✅ All referenced scripts, styles, and links responded without 404/500 errors.</p>`;
-    } else {
-        assetsList.innerHTML = brokenAssets.map(a => `
-            <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-                <div class="space-y-0.5 max-w-[80%]">
-                    <div class="font-mono text-white truncate">${escapeHtml(a.url)}</div>
-                    <div class="text-slate-400 text-[11px]">${escapeHtml(a.error)}</div>
+            ${details.fix_advice ? `
+                <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <span class="text-xs font-bold text-blue-800">How to Fix This:</span>
+                    <p class="text-xs text-slate-700 mt-0.5">${escapeHtml(details.fix_advice)}</p>
                 </div>
-                <div class="text-right">
-                    <span class="px-2 py-0.5 rounded font-mono text-[10px] ${a.severity === 'Critical' ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'}">${a.kind.toUpperCase()} • ${a.status || 'ERR'}</span>
-                </div>
+            ` : ''}
+            <div class="text-[11px] text-slate-500">
+                Division: <span class="font-medium text-slate-700">${w.division}</span>
             </div>
-        `).join("");
-    }
-
-    // API Routes
-    const apiList = document.getElementById("api-list");
-    if (apis.length === 0) {
-        apiList.innerHTML = `<p class="text-xs text-slate-400 py-3">No client-side fetch/axios calls discovered in scripts.</p>`;
-    } else {
-        apiList.innerHTML = apis.map(ep => `
-            <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-                <div>
-                    <div class="font-mono text-indigo-300">${escapeHtml(ep.raw_path)}</div>
-                    <div class="text-[11px] text-slate-400 truncate">Called from: ${escapeHtml(ep.source)}</div>
-                </div>
-                <span class="px-2 py-0.5 rounded font-mono text-[10px] ${ep.status >= 400 ? 'bg-rose-500/20 text-rose-300' : (ep.status ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-400')}">
-                    HTTP ${ep.status || 'UNTESTED'}
-                </span>
-            </div>
-        `).join("");
-    }
-
-    // Forms
-    const formsList = document.getElementById("forms-list");
-    if (forms.length === 0) {
-        formsList.innerHTML = `<p class="text-xs text-slate-400 py-3">No HTML forms found on page.</p>`;
-    } else {
-        formsList.innerHTML = forms.map((f, idx) => `
-            <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1 text-xs">
-                <div class="flex items-center justify-between">
-                    <span class="font-bold text-white">Form #${idx + 1} (${f.method} ${f.action || '(Self)'})</span>
-                    <span class="px-2 py-0.5 rounded font-mono text-[10px] ${f.has_submit ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}">
-                        ${f.has_submit ? 'HAS SUBMIT BTN' : 'NO SUBMIT BTN'}
-                    </span>
-                </div>
-                ${f.issue ? `<p class="text-amber-400 text-[11px]">${escapeHtml(f.issue)}</p>` : `<p class="text-emerald-400 text-[11px]">Form structure valid with ${f.inputs_count} inputs.</p>`}
-            </div>
-        `).join("");
-    }
-}
-
-// Open Node Modal
-function openNodeModal(nodeId) {
-    const node = currentNodesState[nodeId];
-    if (!node) return;
-
-    modalNodeTitle.textContent = node.title;
-    modalNodeStatus.textContent = node.status || "IDLE";
-    modalNodeIcon.className = `w-10 h-10 rounded-xl flex items-center justify-center text-lg ${node.status === 'critical' ? 'bg-rose-500/20 text-rose-400' : (node.status === 'warning' ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400')}`;
-    modalNodeIcon.innerHTML = `<i class="${node.icon}"></i>`;
-
-    const details = node.details || {};
-    let contentHtml = `
-        <div>
-            <span class="font-bold text-white">Model Diagnosis:</span>
-            <p class="text-slate-300 mt-1">${escapeHtml(details.diagnosis || details.overview || details.point_of_failure || 'Diagnostic checks in progress...')}</p>
         </div>
     `;
 
-    if (details.issues && details.issues.length) {
-        contentHtml += `
-            <div class="mt-3">
-                <span class="font-bold text-rose-400">Issues Flagged:</span>
-                <ul class="list-disc pl-4 space-y-1 mt-1 text-slate-300">
-                    ${details.issues.map(iss => `<li>${escapeHtml(iss)}</li>`).join("")}
-                </ul>
-            </div>
-        `;
-    }
-
-    if (details.crash_points && details.crash_points.length) {
-        contentHtml += `
-            <div class="mt-3">
-                <span class="font-bold text-rose-400">Crash Points:</span>
-                <div class="space-y-2 mt-1">
-                    ${details.crash_points.map(cp => `
-                        <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-                            <div class="font-bold text-rose-300">${escapeHtml(cp.type)}</div>
-                            <div class="text-slate-400">${escapeHtml(cp.description)}</div>
-                            <div class="text-emerald-400 mt-1">Fix: ${escapeHtml(cp.fix)}</div>
-                        </div>
-                    `).join("")}
-                </div>
-            </div>
-        `;
-    }
-
-    modalNodeContent.innerHTML = contentHtml;
     nodeModal.classList.remove("hidden");
 }
 
@@ -661,26 +570,6 @@ btnCloseNodeModal.addEventListener("click", () => nodeModal.classList.add("hidde
 nodeModal.addEventListener("click", (e) => {
     if (e.target === nodeModal) nodeModal.classList.add("hidden");
 });
-
-// Tabs logic
-function initTabs() {
-    const tabBtns = document.querySelectorAll(".tab-btn");
-    tabBtns.forEach(btn => {
-        btn.addEventListener("click", () => {
-            tabBtns.forEach(b => {
-                b.classList.remove("border-indigo-500", "text-white");
-                b.classList.add("border-transparent", "text-slate-400");
-            });
-            btn.classList.add("border-indigo-500", "text-white");
-            btn.classList.remove("border-transparent", "text-slate-400");
-
-            document.querySelectorAll(".tab-pane").forEach(pane => pane.classList.add("hidden"));
-            const target = btn.getAttribute("data-tab");
-            const targetPane = document.getElementById(target);
-            if (targetPane) targetPane.classList.remove("hidden");
-        });
-    });
-}
 
 // History logic
 function initHistory() {
@@ -706,14 +595,14 @@ async function refreshHistory() {
         }
 
         historyList.innerHTML = list.map(item => `
-            <div onclick="loadPastAudit('${item.id}')" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 cursor-pointer transition space-y-1">
+            <div onclick="loadPastAudit('${item.id}')" class="p-3 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 cursor-pointer transition space-y-1">
                 <div class="flex items-center justify-between text-xs">
-                    <span class="font-bold text-white truncate max-w-[200px]">${escapeHtml(item.target_url)}</span>
-                    <span class="font-mono text-[10px] px-1.5 py-0.5 rounded ${item.site_crashes ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'}">
-                        ${item.health_score}/100
+                    <span class="font-bold text-slate-900 truncate max-w-[200px]">${escapeHtml(item.target_url)}</span>
+                    <span class="font-medium text-[10px] px-2 py-0.5 rounded-full ${item.site_crashes ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
+                        Score: ${item.health_score}/100
                     </span>
                 </div>
-                <p class="text-[11px] text-slate-400 truncate">${escapeHtml(item.crash_point || 'Clean run')}</p>
+                <p class="text-[11px] text-slate-500 truncate">${escapeHtml(item.crash_point || 'Passed all checks')}</p>
             </div>
         `).join("");
     } catch (err) {
@@ -732,16 +621,15 @@ async function loadPastAudit(auditId) {
         resultsWrapper.classList.remove("hidden");
         targetUrlInput.value = data.target_url;
 
-        // Populate tree visuals from stored nodes
-        renderInitialTreeSkeleton();
+        renderInitialWorkersSkeleton();
         const nodes = data.tree_data?.nodes || {};
         for (const [nid, node] of Object.entries(nodes)) {
-            updateNodeVisual(nid, node.status, node.details);
+            updateWorkerCard(nid, node.status, node.details);
         }
 
         renderAuditReport(data);
     } catch (err) {
-        alert("Failed to load audit record.");
+        alert("Could not load past audit.");
     }
 }
 

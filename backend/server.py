@@ -147,51 +147,57 @@ async def export_audit(audit_id: str, format: str = Query("markdown", enum=["mar
     crash_pinpointer = tree.get("synthesis_crash_pinpointer", {}).get("details", {})
     autofix = tree.get("synthesis_autofix", {}).get("details", {})
 
-    md = f"""# SiteTree Bug & Crash Diagnostic Report
+    timeline = crash_pinpointer.get("user_experience_timeline") or crash_pinpointer.get("execution_timeline") or []
+    instructions = autofix.get("simple_instructions") or autofix.get("remedy_steps") or []
+
+    md = f"""# SiteTree Diagnostic Report (50 AI Workers)
 **Target URL**: `{record.get('target_url')}`  
+**Audit ID**: `{record.get('id')}`  
 **Analyzed At**: {record.get('timestamp')}  
-**AI Diagnostic Engine**: {summary.get('ai_engine_used', 'Heuristic / Gemini')}  
 **Overall Health Score**: {summary.get('overall_health_score')}/100  
-**Site Crashes?**: {'🚨 YES - FATAL CRASH DETECTED' if summary.get('site_crashes') else '✅ NO FATAL CRASH'}
+**Status**: {'🚨 CRITICAL FAILURE DETECTED' if summary.get('site_crashes') else '✅ ALL 50 CHECKS OPERATIONAL'}
 
 ---
 
-## 🚨 Critical Point of Failure
+## 🚨 Point of Failure: Where the Site Stops Working
 > {crash_pinpointer.get('point_of_failure', 'No fatal crashes detected.')}
 
-### Execution Failure Timeline:
+### Plain English Explanation:
+{crash_pinpointer.get('simple_explanation', 'All tested parameters passed.')}
+
+### What Your Visitor Experiences:
 """
-    for step in crash_pinpointer.get("execution_timeline", []):
+    for step in timeline:
         md += f"- {step}\n"
 
     md += f"""
-**Root Cause**: {crash_pinpointer.get('root_cause', 'N/A')}
-
 ---
 
-## 🛠️ Auto-Fix & Remedy
+## 🛠️ Recommended Simple Fix
 ### {autofix.get('patch_title', 'Recommended Fix')}
 ```javascript
-{autofix.get('code_diff', '// No fix required')}
+{autofix.get('code_diff', '// No code changes needed.')}
 ```
 
-### Remediation Steps:
+### 3 Simple Steps to Apply:
 """
-    for step in autofix.get("remedy_steps", []):
+    for step in instructions:
         md += f"1. {step}\n"
 
-    md += f"\n**Prevention Tip**: {autofix.get('prevention_tip', 'N/A')}\n\n---\n\n## 🌿 Multi-AI Tree Branch Findings\n"
+    tip = autofix.get("plain_english_tip") or autofix.get("prevention_tip", "Test your links before deploying.")
+    md += f"\n**Simple Advice**: {tip}\n\n---\n\n## 📋 50 Specialized AI Worker Checkpoints\n"
 
     for node_id, node in tree.items():
+        if node_id in ["synthesis_crash_pinpointer", "synthesis_autofix", "root_orchestrator"]:
+            continue
         details = node.get("details", {})
         md += f"### {node.get('title')}\n"
-        md += f"- **Status**: `{node.get('status')}`\n"
-        if "diagnosis" in details:
-            md += f"- **Diagnosis**: {details['diagnosis']}\n"
-        if "issues" in details and details["issues"]:
-            md += "- **Detected Issues**:\n"
-            for iss in details["issues"]:
-                md += f"  * {iss}\n"
+        md += f"- **Division**: {node.get('division', 'General')}\n"
+        md += f"- **Status**: `{node.get('status', 'healthy').upper()}`\n"
+        if "simple_message" in details:
+            md += f"- **Check Summary**: {details['simple_message']}\n"
+        if "fix_advice" in details and details["fix_advice"] != "No action needed.":
+            md += f"- **Fix Advice**: {details['fix_advice']}\n"
         md += "\n"
 
     return PlainTextResponse(md, media_type="text/markdown")
